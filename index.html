@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Répertoire — Réseau médico-social</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'DM Sans',sans-serif; height:100vh; display:flex; overflow:hidden; background:#faf7f2; color:#2c2825; }
+nav { width:190px; background:#fffef9; border-right:1px solid #e8e0d5; display:flex; flex-direction:column; flex-shrink:0; padding:16px 0; }
+.logo { padding:0 16px 20px; font-family:Georgia,serif; font-size:20px; font-weight:bold; }
+.logo span { color:#c1607a; font-style:italic; }
+.nav-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#7a7068; padding:0 16px 8px; }
+.nav-btn { display:flex; align-items:center; gap:10px; padding:10px 16px; background:transparent; border:none; border-left:3px solid transparent; cursor:pointer; text-align:left; width:100%; transition:all .15s; }
+.nav-btn:hover { background:#f5f1eb; }
+.nav-btn.active { background:#f0ece6; border-left-color:#c1607a; }
+.nav-btn .ico { font-size:20px; }
+.nav-btn .nav-title { font-size:13px; font-weight:600; color:#2c2825; }
+.nav-btn .nav-sub { font-size:10px; color:#7a7068; }
+.nav-footer { margin-top:auto; padding:12px 16px; font-size:10px; color:#aaa; line-height:1.6; border-top:1px solid #e8e0d5; }
+.sync-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#5a9972; margin-right:4px; vertical-align:middle; }
+#main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.topbar { background:#fffef9; border-bottom:1px solid #e8e0d5; padding:8px 16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; flex-shrink:0; }
+.search-wrap { position:relative; flex:1; max-width:280px; }
+.search-wrap input { width:100%; padding:6px 12px 6px 32px; border:1.5px solid #e8e0d5; border-radius:50px; font-family:inherit; font-size:12px; background:#faf7f2; outline:none; color:#2c2825; }
+.search-ico { position:absolute; left:11px; top:50%; transform:translateY(-50%); font-size:13px; pointer-events:none; }
+.chip { padding:4px 12px; border-radius:50px; border:1.5px solid #e8e0d5; background:#faf7f2; color:#2c2825; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
+.chip.active { border-color:transparent; color:#fff; }
+.chip-fam.active{background:#c1607a;} .chip-mas.active{background:#5a9972;} .chip-fv.active{background:#4a82b8;}
+.chip-fh.active{background:#c87e3a;} .chip-eanm.active{background:#7a5aa8;} .chip-hi.active{background:#b8962a;}
+.chip-med.active{background:#2e7fc1;} .chip-psy.active{background:#7c3fc1;}
+.chip-gem.active{background:#e07b39;} .chip-asso.active{background:#5a9972;} .chip-apero.active{background:#c1607a;}
+.chip-bool.active{background:#2c2825;border-color:#2c2825;color:#fff;}
+.filter-select { padding:4px 10px; border-radius:50px; border:1.5px solid #e8e0d5; background:#faf7f2; font-family:inherit; font-size:12px; color:#2c2825; outline:none; cursor:pointer; }
+#sec-medecins .topbar { flex-wrap:nowrap; overflow:visible; }
+#sec-medecins .search-wrap { flex:0 0 165px; max-width:165px; }
+#sec-medecins .chip, #sec-medecins .filter-select, #sec-medecins .btn-reset, #sec-medecins .count-badge, #sec-medecins .type-filter { flex:0 0 auto; }
+#sec-medecins .chip { padding:4px 8px; font-size:11px; }
+#sec-medecins .btn-reset { margin-left:0; }
+.type-filter { position:relative; z-index:800; }
+.type-filter summary { list-style:none; padding:4px 10px; border-radius:50px; border:1.5px solid #e8e0d5; background:#faf7f2; color:#2c2825; font-family:inherit; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
+.type-filter summary::-webkit-details-marker { display:none; }
+.type-filter[open] summary { border-color:#c1607a; background:#fffef9; }
+.type-filter-menu { position:absolute; top:calc(100% + 6px); left:0; min-width:190px; max-height:240px; overflow:auto; padding:8px; border:1px solid #e8e0d5; border-radius:12px; background:#fffef9; box-shadow:0 8px 24px rgba(0,0,0,.12); }
+.type-filter-menu label { display:flex; align-items:center; gap:7px; padding:6px 8px; border-radius:8px; font-size:12px; color:#2c2825; cursor:pointer; white-space:nowrap; }
+.type-filter-menu label:hover { background:#f5f1eb; }
+.type-filter-menu input { accent-color:#c1607a; }
+.btn-reset { padding:4px 12px; border-radius:50px; border:1.5px solid #e8e0d5; background:transparent; font-family:inherit; font-size:12px; color:#7a7068; cursor:pointer; margin-left:auto; }
+.count-badge { font-size:12px; color:#7a7068; white-space:nowrap; }
+.count-badge strong { color:#2c2825; }
+.body-wrap { flex:1; display:flex; overflow:hidden; }
+.map-wrap { flex:1; position:relative; }
+.map-el { width:100%; height:100%; }
+.sidebar { width:290px; background:#fffef9; border-left:1px solid #e8e0d5; display:flex; flex-direction:column; overflow:hidden; flex-shrink:0; }
+.sidebar-head { padding:10px 14px; border-bottom:1px solid #e8e0d5; font-size:11px; color:#7a7068; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.sidebar-title { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sidebar-tools { padding:8px 14px; border-bottom:1px solid #e8e0d5; background:#fffef9; flex-shrink:0; }
+.sidebar-search-wrap { position:relative; }
+.sidebar-search-wrap input { width:100%; padding:6px 10px 6px 28px; border:1.5px solid #e8e0d5; border-radius:50px; font-family:inherit; font-size:11px; background:#faf7f2; outline:none; color:#2c2825; }
+.sidebar-search-wrap .search-ico { left:10px; font-size:12px; }
+.export-btn { flex-shrink:0; padding:4px 8px; border-radius:50px; border:1.5px solid #e8e0d5; background:#faf7f2; color:#2c2825; font-family:inherit; font-size:10px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.export-btn:hover { background:#f0ece6; }
+.sidebar-list { flex:1; overflow-y:auto; }
+.sidebar-list::-webkit-scrollbar{width:3px;} .sidebar-list::-webkit-scrollbar-thumb{background:#e8e0d5;border-radius:2px;}
+.card { padding:10px 14px; border-bottom:1px solid #e8e0d5; cursor:pointer; display:flex; gap:10px; align-items:flex-start; transition:background .12s; }
+.card:hover{background:#f5f1eb;} .card.active{background:#f0ece6;}
+.card-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; margin-top:4px; }
+.card-type { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; margin-bottom:2px; }
+.card-name { font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.card-ville { font-size:11px; color:#7a7068; margin-top:1px; }
+.card-tags { display:flex; gap:3px; margin-top:4px; flex-wrap:wrap; }
+.tag { font-size:9px; padding:1px 6px; border-radius:20px; font-weight:700; }
+.empty { padding:40px 20px; text-align:center; color:#7a7068; }
+.empty .emoji { font-size:30px; margin-bottom:10px; }
+.detail-panel { display:none; position:absolute; bottom:16px; left:16px; right:306px; background:#fffef9; border:1px solid #e8e0d5; border-radius:16px; box-shadow:0 8px 32px rgba(0,0,0,.12); z-index:500; max-height:56%; overflow-y:auto; }
+.detail-head { padding:14px 16px 10px; border-bottom:1px solid #e8e0d5; }
+.detail-type { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; margin-bottom:3px; }
+.detail-name { font-family:Georgia,serif; font-size:18px; color:#2c2825; margin-bottom:3px; line-height:1.2; }
+.detail-sub { font-size:12px; color:#7a7068; }
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:12px 16px; }
+.detail-field label { display:block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:#7a7068; margin-bottom:2px; }
+.detail-field p { font-size:13px; color:#2c2825; font-weight:500; }
+.detail-field.full { grid-column:1/-1; }
+.detail-pills { display:flex; gap:6px; padding:0 16px 10px; flex-wrap:wrap; }
+.pill { font-size:11px; padding:2px 10px; border-radius:20px; font-weight:600; color:#fff; }
+.detail-comment { padding:0 16px 12px; }
+.detail-comment label { display:block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:#7a7068; margin-bottom:4px; }
+.detail-comment p { font-size:12px; color:#2c2825; line-height:1.5; }
+.detail-actions { display:flex; gap:6px; padding:10px 16px 12px; flex-wrap:wrap; border-top:1px solid #e8e0d5; }
+.action-btn { padding:6px 12px; border-radius:8px; border:1.5px solid #e8e0d5; background:#faf7f2; font-size:11px; font-weight:600; cursor:pointer; text-decoration:none; color:#2c2825; font-family:inherit; }
+.action-btn:hover { background:#e8e0d5; }
+.close-btn { position:absolute; top:12px; right:14px; background:none; border:none; font-size:18px; cursor:pointer; color:#7a7068; }
+.section { display:none; flex:1; flex-direction:column; overflow:hidden; }
+.section.active { display:flex; }
+.map-legend { background:#fffef9; border:1px solid #e8e0d5; border-radius:10px; padding:10px 12px; font-size:11px; line-height:1.9; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+.legend-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#7a7068; margin-bottom:6px; }
+.legend-row { display:flex; align-items:center; gap:7px; }
+.legend-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
+
+/* Barre de recherche de zone */
+.zone-bar { position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:400; display:flex; gap:0; filter:drop-shadow(0 2px 8px rgba(0,0,0,.12)); }
+.zone-input-wrap { position:relative; }
+.zone-input-wrap input { width:280px; padding:9px 36px 9px 16px; border:2px solid #e8e0d5; border-right:none; border-radius:50px 0 0 50px; font-family:'DM Sans',sans-serif; font-size:13px; background:#fffef9; outline:none; color:#2c2825; }
+.zone-input-wrap input:focus { border-color:#c1607a; }
+.zone-clear { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:14px; cursor:pointer; color:#7a7068; display:none; line-height:1; }
+.zone-btn { padding:9px 16px; background:#c1607a; border:2px solid #c1607a; border-radius:0 50px 50px 0; color:#fff; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; transition:background .15s; }
+.zone-btn:hover { background:#a84e66; border-color:#a84e66; }
+.zone-suggestions { position:absolute; top:calc(100% + 6px); left:0; right:0; background:#fffef9; border:1px solid #e8e0d5; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.1); overflow:hidden; display:none; }
+.zone-suggestion { padding:8px 16px; font-size:13px; cursor:pointer; color:#2c2825; transition:background .1s; }
+.zone-suggestion:hover { background:#f0ece6; }
+
+/* Marqueur de zone */
+.zone-marker-icon { background:#c1607a; border:3px solid #fff; border-radius:50%; width:18px; height:18px; box-shadow:0 2px 8px rgba(0,0,0,.3); animation:pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(193,96,122,.4);} 50%{box-shadow:0 0 0 10px rgba(193,96,122,0);} }
+
+/* Fenêtre d'extraction */
+.modal-backdrop { display:none; position:fixed; inset:0; background:rgba(44,40,37,.35); z-index:10000; align-items:center; justify-content:center; padding:20px; }
+.modal-backdrop.open { display:flex; }
+.modal-box { width:min(640px,96vw); max-height:88vh; background:#fffef9; border:1px solid #e8e0d5; border-radius:18px; box-shadow:0 18px 60px rgba(0,0,0,.22); display:flex; flex-direction:column; overflow:hidden; }
+.modal-head { padding:14px 18px; border-bottom:1px solid #e8e0d5; position:relative; }
+.modal-head h2 { font-family:Georgia,serif; font-size:20px; color:#2c2825; margin-bottom:3px; }
+.modal-head p { font-size:12px; color:#7a7068; }
+.modal-close { position:absolute; top:10px; right:12px; border:none; background:transparent; font-size:22px; color:#7a7068; cursor:pointer; }
+.modal-body { padding:14px 18px; overflow:auto; }
+#export-text { width:100%; min-height:300px; resize:vertical; padding:12px; border:1.5px solid #e8e0d5; border-radius:12px; background:#faf7f2; color:#2c2825; font-family:'DM Sans',sans-serif; font-size:13px; line-height:1.45; }
+.modal-actions { display:flex; justify-content:flex-end; gap:8px; padding:12px 18px 16px; border-top:1px solid #e8e0d5; }
+.modal-btn { padding:7px 13px; border-radius:9px; border:1.5px solid #e8e0d5; background:#faf7f2; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; color:#2c2825; }
+.modal-btn.primary { background:#c1607a; border-color:#c1607a; color:#fff; }
+
+
+/* ══════════════════════════════════════════════════════
+   MOBILE — carte plein écran, filtres repliables, liste en tiroir
+   N'affecte pas l'affichage ordinateur.
+   ══════════════════════════════════════════════════════ */
+.mobile-fabs { display:none; }
+@media (max-width: 768px) {
+  html, body { width:100%; height:100dvh; overflow:hidden; }
+  body { display:block; }
+  nav {
+    position:fixed; left:0; right:0; bottom:0; width:auto; height:64px;
+    z-index:12000; flex-direction:row; align-items:stretch; justify-content:space-around;
+    padding:0; border-right:none; border-top:1px solid #e8e0d5;
+    box-shadow:0 -6px 24px rgba(0,0,0,.08);
+  }
+  .logo, .nav-label, .nav-footer, .nav-btn .nav-sub { display:none; }
+  .nav-btn {
+    flex:1; flex-direction:column; justify-content:center; align-items:center; gap:2px;
+    padding:6px 2px; border-left:none; border-top:3px solid transparent;
+  }
+  .nav-btn.active { border-left-color:transparent; border-top-color:#c1607a; background:#f0ece6; }
+  .nav-btn .ico { font-size:19px; line-height:1; }
+  .nav-btn .nav-title { font-size:10px; line-height:1.1; text-align:center; }
+  #main { height:calc(100dvh - 64px); padding-bottom:0; }
+  .section { position:relative; height:calc(100dvh - 64px); overflow:hidden; }
+  .body-wrap { position:relative; flex:1; height:100%; overflow:hidden; }
+  .map-wrap { position:absolute; inset:0; }
+  .map-el { height:100%; }
+
+  .zone-bar {
+    top:10px; left:10px; right:10px; transform:none; width:auto; z-index:700;
+    filter:drop-shadow(0 3px 10px rgba(0,0,0,.14));
+  }
+  .zone-input-wrap { flex:1; min-width:0; }
+  .zone-input-wrap input { width:100%; font-size:12px; padding:9px 32px 9px 13px; }
+  .zone-btn { padding:9px 12px; font-size:12px; }
+  .zone-suggestions { z-index:1200; }
+
+  .mobile-fabs {
+    display:flex; position:absolute; top:58px; right:10px; gap:7px; z-index:950;
+  }
+  .mobile-fabs button {
+    border:1px solid #e8e0d5; background:#fffef9; color:#2c2825;
+    border-radius:999px; padding:8px 11px; font-family:inherit; font-size:12px;
+    font-weight:700; box-shadow:0 3px 12px rgba(0,0,0,.13); cursor:pointer;
+  }
+  .section.mobile-filters-open .mobile-filter-btn,
+  .section.mobile-list-open .mobile-list-btn { background:#c1607a; color:#fff; border-color:#c1607a; }
+
+  .topbar {
+    position:absolute; left:10px; right:10px; top:104px; z-index:900;
+    border:1px solid #e8e0d5; border-radius:16px; box-shadow:0 10px 32px rgba(0,0,0,.16);
+    max-height:54dvh; overflow-y:auto; padding:10px; gap:7px;
+    transform:translateY(-16px); opacity:0; pointer-events:none;
+    transition:opacity .18s ease, transform .18s ease;
+    flex-wrap:wrap;
+  }
+  .section.mobile-filters-open .topbar { transform:translateY(0); opacity:1; pointer-events:auto; }
+  .search-wrap, #sec-medecins .search-wrap { flex:1 1 100%; max-width:none; }
+  #sec-medecins .topbar { flex-wrap:wrap; overflow-y:auto; }
+  #sec-medecins .chip, #sec-medecins .filter-select, #sec-medecins .btn-reset, #sec-medecins .count-badge, #sec-medecins .type-filter { flex:0 0 auto; }
+  #sec-medecins .btn-reset { margin-left:0; }
+  .type-filter-menu { position:fixed; left:20px; right:20px; top:154px; min-width:0; max-height:42dvh; z-index:13000; }
+  .btn-reset { margin-left:0; }
+  .count-badge { margin-left:auto; }
+
+  .sidebar {
+    position:absolute; left:10px; right:10px; bottom:10px; width:auto; height:58dvh; max-height:58dvh;
+    z-index:850; border:1px solid #e8e0d5; border-radius:18px; box-shadow:0 -8px 32px rgba(0,0,0,.18);
+    transform:translateY(calc(100% - 48px)); transition:transform .22s ease;
+  }
+  .section.mobile-list-open .sidebar { transform:translateY(0); }
+  .sidebar-head { min-height:48px; border-bottom:1px solid #e8e0d5; cursor:pointer; }
+  .sidebar-head::before {
+    content:''; position:absolute; left:50%; top:7px; transform:translateX(-50%);
+    width:42px; height:4px; border-radius:999px; background:#e8e0d5;
+  }
+  .sidebar-title { padding-top:5px; }
+  .sidebar-tools { padding:8px 12px; }
+  .sidebar-list { -webkit-overflow-scrolling:touch; }
+  .card { padding:11px 12px; }
+
+  .detail-panel {
+    left:10px; right:10px; bottom:62px; max-height:52dvh; border-radius:18px; z-index:820;
+  }
+  .detail-grid { grid-template-columns:1fr; }
+  .detail-actions { padding-bottom:14px; }
+  .map-legend { display:none; }
+  .leaflet-control-zoom { margin-top:112px !important; }
+  .modal-backdrop { padding:10px; }
+  .modal-box { width:100%; max-height:88dvh; border-radius:16px; }
+  #export-text { min-height:260px; }
+}
+@media (max-width: 420px) {
+  .zone-btn { padding-left:10px; padding-right:10px; }
+  .mobile-fabs button { padding:8px 9px; font-size:11px; }
+  .chip, .filter-select, .type-filter summary { font-size:11px; padding:4px 9px; }
+  .nav-btn .nav-title { font-size:9px; }
+}
+
+/* Loading */
+#loading { position:fixed; inset:0; background:#faf7f2; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; gap:14px; transition:opacity .4s; }
+#loading.hidden { opacity:0; pointer-events:none; }
+.spinner { width:36px; height:36px; border:3px solid #e8e0d5; border-top-color:#c1607a; border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-text { font-size:13px; color:#7a7068; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div style="font-family:Georgia,serif;font-size:24px;font-weight:bold">Réper<span style="color:#c1607a;font-style:italic">toire</span></div>
+  <div class="spinner"></div>
+  <div id="loading-text">Chargement des données…</div>
+</div>
+
+<nav>
+  <div class="logo">Réper<span>toire</span></div>
+  <div class="nav-label">Cartes</div>
+  <button class="nav-btn active" onclick="switchSection('medecins',this)">
+    <span class="ico">🩺</span>
+    <div><div class="nav-title">Médecins</div></div>
+  </button>
+  <button class="nav-btn" onclick="switchSection('psychologues',this)">
+    <span class="ico">🧠</span>
+    <div><div class="nav-title">Psychologues</div></div>
+  </button>
+  <button class="nav-btn" onclick="switchSection('associatif',this)">
+    <span class="ico">🤝</span>
+    <div><div class="nav-title">Associatif</div></div>
+  </button>
+  <button class="nav-btn" onclick="switchSection('hebergements',this)">
+    <span class="ico">🏠</span>
+    <div><div class="nav-title">Hébergements</div><div class="nav-sub">FAM, MAS, FV…</div></div>
+  </button>
+  <div class="nav-footer">
+    <span class="sync-dot"></span>Synchro Google Sheets<br>
+    <span id="last-update" style="color:#bbb;font-size:9px"></span>
+  </div>
+</nav>
+
+<div id="main">
+  <!-- HÉBERGEMENTS -->
+  <div id="sec-hebergements" class="section">
+    <div class="topbar">
+      <div class="search-wrap"><span class="search-ico">🔍</span><input id="h-search" placeholder="Nom ou ville…" oninput="renderH()"></div>
+      <button class="chip chip-fam active" data-type="FAM" onclick="toggleHType(this)">FAM</button>
+      <button class="chip chip-mas active" data-type="MAS" onclick="toggleHType(this)">MAS</button>
+      <button class="chip chip-fv  active" data-type="FV"  onclick="toggleHType(this)">FV</button>
+      <button class="chip chip-fh  active" data-type="FH"  onclick="toggleHType(this)">FH</button>
+      <button class="chip chip-eanm active" data-type="EANM" onclick="toggleHType(this)">EANM</button>
+      <button class="chip chip-hi  active" data-type="HI"  onclick="toggleHType(this)">HI</button>
+      <select class="filter-select" id="h-dept" onchange="renderH()"><option value="">Tous dép.</option></select>
+      <button class="chip chip-bool" id="h-tsa"  onclick="toggleBool('h-tsa',renderH)">🧩 TSA/TED</button>
+      <button class="chip chip-bool" id="h-snoe" onclick="toggleBool('h-snoe',renderH)">💆 Snoezelen</button>
+      <button class="btn-reset" onclick="resetH()">↺ Reset</button>
+      <span class="count-badge"><strong id="h-count">0</strong> établissements</span>
+    </div>
+    <div class="body-wrap">
+      <div class="map-wrap">
+        <div id="map-h" class="map-el"></div>
+        <div id="detail-h" class="detail-panel"></div>
+        <div class="zone-bar">
+          <div class="zone-input-wrap">
+            <input type="text" id="zone-h" placeholder="📍 Zoomer sur une ville, un quartier…" oninput="onZoneInput('h')" onkeydown="if(event.key==='Enter')searchZone('h')">
+            <button class="zone-clear" id="zone-clear-h" onclick="clearZone('h')">✕</button>
+            <div class="zone-suggestions" id="zone-sugg-h"></div>
+          </div>
+          <button class="zone-btn" onclick="searchZone('h')">Rechercher</button>
+        </div>
+        <div class="mobile-fabs">
+          <button class="mobile-filter-btn" onclick="toggleMobileFilters('h')">⚙️ Filtres</button>
+          <button class="mobile-list-btn" onclick="toggleMobileList('h')">☰ Liste</button>
+        </div>
+      </div>
+      <div class="sidebar">
+        <div class="sidebar-head" onclick="openMobileList('h')"><span class="sidebar-title" id="h-sidebar-head">Chargement…</span><button class="export-btn" onclick="event.stopPropagation();openExport('h')">📋 Extraire</button></div>
+        <div class="sidebar-tools"><div class="sidebar-search-wrap"><span class="search-ico">🔎</span><input id="h-list-search" placeholder="Chercher dans la liste…" oninput="renderH()"></div></div>
+        <div class="sidebar-list" id="h-sidebar-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MÉDECINS -->
+  <div id="sec-medecins" class="section active">
+    <div class="topbar">
+      <div class="search-wrap"><span class="search-ico">🔍</span><input id="m-search" placeholder="Nom ou ville…" oninput="renderM()"></div>
+      <details class="type-filter" id="m-type-details">
+        <summary>Spécialité : <span id="m-type-label">Psychiatre</span> ▾</summary>
+        <div class="type-filter-menu" id="m-type-menu"></div>
+      </details>
+      <select class="filter-select" id="m-dept" onchange="renderM()"><option value="">Tous dép.</option></select>
+      <button class="chip chip-bool" id="m-di"    onclick="toggleBool('m-di',renderM)">🧩 DI</button>
+      <button class="chip chip-bool" id="m-tdah"  onclick="toggleBool('m-tdah',renderM)">⚡ TDAH</button>
+      <button class="chip chip-bool" id="m-tca"   onclick="toggleBool('m-tca',renderM)">🍽️ TCA</button>
+      <button class="chip chip-bool" id="m-sexo"  onclick="toggleBool('m-sexo',renderM)">❤️ Sexologie</button>
+      <button class="chip chip-bool" id="m-dpl"   onclick="toggleBool('m-dpl',renderM)">🏥 DPL</button>
+      <button class="chip chip-bool" id="m-m37"   onclick="toggleBool('m-m37',renderM)">📋 M37</button>
+      <button class="chip chip-bool" id="m-visio" onclick="toggleBool('m-visio',renderM)">💻 Visio</button>
+      <button class="btn-reset" onclick="resetM()">↺ Reset</button>
+      <span class="count-badge"><strong id="m-count">0</strong> médecins</span>
+    </div>
+    <div class="body-wrap">
+      <div class="map-wrap">
+        <div id="map-m" class="map-el"></div>
+        <div id="detail-m" class="detail-panel"></div>
+        <div class="zone-bar">
+          <div class="zone-input-wrap">
+            <input type="text" id="zone-m" placeholder="📍 Zoomer sur une ville, un quartier…" oninput="onZoneInput('m')" onkeydown="if(event.key==='Enter')searchZone('m')">
+            <button class="zone-clear" id="zone-clear-m" onclick="clearZone('m')">✕</button>
+            <div class="zone-suggestions" id="zone-sugg-m"></div>
+          </div>
+          <button class="zone-btn" onclick="searchZone('m')">Rechercher</button>
+        </div>
+        <div class="mobile-fabs">
+          <button class="mobile-filter-btn" onclick="toggleMobileFilters('m')">⚙️ Filtres</button>
+          <button class="mobile-list-btn" onclick="toggleMobileList('m')">☰ Liste</button>
+        </div>
+      </div>
+      <div class="sidebar">
+        <div class="sidebar-head" onclick="openMobileList('m')"><span class="sidebar-title" id="m-sidebar-head">Chargement…</span><button class="export-btn" onclick="event.stopPropagation();openExport('m')">📋 Extraire</button></div>
+        <div class="sidebar-tools"><div class="sidebar-search-wrap"><span class="search-ico">🔎</span><input id="m-list-search" placeholder="Chercher dans la liste…" oninput="renderM()"></div></div>
+        <div class="sidebar-list" id="m-sidebar-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PSYCHOLOGUES -->
+  <div id="sec-psychologues" class="section">
+    <div class="topbar">
+      <div class="search-wrap"><span class="search-ico">🔍</span><input id="p-search" placeholder="Nom ou ville…" oninput="renderP()"></div>
+      <select class="filter-select" id="p-dept" onchange="renderP()"><option value="">Tous dép.</option></select>
+      <button class="chip chip-bool" id="p-di"    onclick="toggleBool('p-di',renderP)">🧩 DI</button>
+      <button class="chip chip-bool" id="p-tdah"  onclick="toggleBool('p-tdah',renderP)">⚡ TDAH</button>
+      <button class="chip chip-bool" id="p-hpi"   onclick="toggleBool('p-hpi',renderP)">✨ HPI</button>
+      <button class="chip chip-bool" id="p-tca"   onclick="toggleBool('p-tca',renderP)">🍽️ TCA</button>
+      <button class="chip chip-bool" id="p-sexo"  onclick="toggleBool('p-sexo',renderP)">❤️ Sexologie</button>
+      <button class="chip chip-bool" id="p-hab"   onclick="toggleBool('p-hab',renderP)">🤝 Habiletés Sociales</button>
+      <button class="chip chip-bool" id="p-m37"   onclick="toggleBool('p-m37',renderP)">📋 M37</button>
+      <button class="chip chip-bool" id="p-visio" onclick="toggleBool('p-visio',renderP)">💻 Visio</button>
+      <button class="btn-reset" onclick="resetP()">↺ Reset</button>
+      <span class="count-badge"><strong id="p-count">0</strong> psychologues</span>
+    </div>
+    <div class="body-wrap">
+      <div class="map-wrap">
+        <div id="map-p" class="map-el"></div>
+        <div id="detail-p" class="detail-panel"></div>
+        <div class="zone-bar">
+          <div class="zone-input-wrap">
+            <input type="text" id="zone-p" placeholder="📍 Zoomer sur une ville, un quartier…" oninput="onZoneInput('p')" onkeydown="if(event.key==='Enter')searchZone('p')">
+            <button class="zone-clear" id="zone-clear-p" onclick="clearZone('p')">✕</button>
+            <div class="zone-suggestions" id="zone-sugg-p"></div>
+          </div>
+          <button class="zone-btn" onclick="searchZone('p')">Rechercher</button>
+        </div>
+        <div class="mobile-fabs">
+          <button class="mobile-filter-btn" onclick="toggleMobileFilters('p')">⚙️ Filtres</button>
+          <button class="mobile-list-btn" onclick="toggleMobileList('p')">☰ Liste</button>
+        </div>
+      </div>
+      <div class="sidebar">
+        <div class="sidebar-head" onclick="openMobileList('p')"><span class="sidebar-title" id="p-sidebar-head">Chargement…</span><button class="export-btn" onclick="event.stopPropagation();openExport('p')">📋 Extraire</button></div>
+        <div class="sidebar-tools"><div class="sidebar-search-wrap"><span class="search-ico">🔎</span><input id="p-list-search" placeholder="Chercher dans la liste…" oninput="renderP()"></div></div>
+        <div class="sidebar-list" id="p-sidebar-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ASSOCIATIF -->
+  <div id="sec-associatif" class="section">
+    <div class="topbar">
+      <div class="search-wrap"><span class="search-ico">🔍</span><input id="a-search" placeholder="Nom ou ville…" oninput="renderA()"></div>
+      <button class="chip chip-gem active"    data-atype="GEM"         onclick="toggleAType(this)">🧩 GEM</button>
+      <button class="chip chip-asso active"   data-atype="Asso locale" onclick="toggleAType(this)">🤝 Asso locale</button>
+      <button class="chip chip-apero active"  data-atype="Aspéro Café" onclick="toggleAType(this)">☕ Aspéro Café</button>
+      <select class="filter-select" id="a-dept" onchange="renderA()"><option value="">Tous dép.</option></select>
+      <button class="btn-reset" onclick="resetA()">↺ Reset</button>
+      <span class="count-badge"><strong id="a-count">0</strong> structures</span>
+    </div>
+    <div class="body-wrap">
+      <div class="map-wrap">
+        <div id="map-a" class="map-el"></div>
+        <div id="detail-a" class="detail-panel"></div>
+        <div class="zone-bar">
+          <div class="zone-input-wrap">
+            <input type="text" id="zone-a" placeholder="📍 Zoomer sur une ville, un quartier…" oninput="onZoneInput('a')" onkeydown="if(event.key==='Enter')searchZone('a')">
+            <button class="zone-clear" id="zone-clear-a" onclick="clearZone('a')">✕</button>
+            <div class="zone-suggestions" id="zone-sugg-a"></div>
+          </div>
+          <button class="zone-btn" onclick="searchZone('a')">Rechercher</button>
+        </div>
+        <div class="mobile-fabs">
+          <button class="mobile-filter-btn" onclick="toggleMobileFilters('a')">⚙️ Filtres</button>
+          <button class="mobile-list-btn" onclick="toggleMobileList('a')">☰ Liste</button>
+        </div>
+      </div>
+      <div class="sidebar">
+        <div class="sidebar-head" onclick="openMobileList('a')"><span class="sidebar-title" id="a-sidebar-head">Chargement…</span><button class="export-btn" onclick="event.stopPropagation();openExport('a')">📋 Extraire</button></div>
+        <div class="sidebar-tools"><div class="sidebar-search-wrap"><span class="search-ico">🔎</span><input id="a-list-search" placeholder="Chercher dans la liste…" oninput="renderA()"></div></div>
+        <div class="sidebar-list" id="a-sidebar-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div id="export-modal" class="modal-backdrop" onclick="if(event.target===this)closeExport()">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="export-title">
+    <div class="modal-head">
+      <button class="modal-close" onclick="closeExport()" aria-label="Fermer">×</button>
+      <h2 id="export-title">Liste à copier</h2>
+      <p id="export-subtitle">Les éléments actuellement visibles dans le panneau latéral.</p>
+    </div>
+    <div class="modal-body">
+      <textarea id="export-text" readonly></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeExport()">Fermer</button>
+      <button class="modal-btn primary" id="copy-export-btn" onclick="copyExportText()">Copier</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// COORDONNÉES PRÉ-CALCULÉES (clé = NOM exact du Sheet)
+// Pour ajouter un nouvel établissement : ajoutez son NOM
+// et ses coordonnées ici, ou laissez le vide et il sera
+// ignoré (pas d'épingle sur la carte).
+// ══════════════════════════════════════════════════════
+const COORDS = {
+  // HÉBERGEMENTS
+  "Les Abeilles":           {lat:43.6768, lng:4.6282},
+  "L'Oustalet":             {lat:43.7742, lng:5.0233},
+  "Louis Philibert":        {lat:43.6438, lng:5.4081},
+  "Louis Philibert (FH)":   {lat:43.6435, lng:5.4085},
+  "Louis Philibert (FV)":   {lat:43.6432, lng:5.4079},
+  "La Maison d'Alexandrine":{lat:43.2952, lng:5.5680},
+  "Héméralia":              {lat:43.2740, lng:5.7040},
+  "Résidence Georges Flandres":{lat:43.3372, lng:5.3935},
+  "Les Tilleuls":           {lat:43.4545, lng:5.4048},
+  "Les Violettes":          {lat:43.3120, lng:5.4090},
+  "Les Lavandes":           {lat:43.3795, lng:5.3658},
+  "Les Églantines":         {lat:43.2550, lng:5.3900},
+  "Les Hortensias":         {lat:43.3000, lng:5.4700},
+  "La Sauvado":             {lat:43.6412, lng:5.0975},
+  "Hameau du Phare":        {lat:43.4105, lng:4.7282},
+  "La Route du Sel":        {lat:43.6308, lng:5.1495},
+  "Le Garlaban":            {lat:43.2945, lng:5.4662},
+  "L'Escale Villa Bel Air": {lat:43.4563, lng:5.4019},
+  "L'Escale Villa Le Petit Mas":{lat:43.5780, lng:5.0053},
+  "Les Capelières":         {lat:43.7270, lng:5.4600},
+  "Le Grand Réal":          {lat:43.7573, lng:5.4950},
+  "Les Aigues Belles":      {lat:43.5782, lng:5.0050},
+  "Les Bories":             {lat:43.4883, lng:5.2324},
+  "Le Ruissatel":           {lat:43.2948, lng:5.4665},
+  "La Farigoule":           {lat:43.7188, lng:5.3218},
+  "Lou Mistraou":           {lat:43.4540, lng:5.4045},
+  "L'Orée du Jour":         {lat:43.5153, lng:5.4255},
+  "Les Abeilles (HI)":      {lat:43.6772, lng:4.6288},
+  "La route du Sel":        {lat:43.6310, lng:5.1498},
+  "Les Tourelles":          {lat:43.3800, lng:5.3650},
+  "Les Kiwis":              {lat:43.2545, lng:5.3905},
+  "Les Abeilles (EANM)":    {lat:43.6768, lng:4.6282},
+  "Les Abeilles (FAM)":     {lat:43.6770, lng:4.6275},
+  // MÉDECINS
+  "Dr Charly AMBERTO":      {lat:43.2960, lng:5.5690},
+  "Dr Marc AMBROSINO":      {lat:43.1017, lng:5.8784},
+  "Dr Mélanie ANTONINI":    {lat:43.8463, lng:6.5118},
+  "Dr Yves BERNAUD":        {lat:43.1201, lng:6.1285},
+  "Dr Georgeta BOSCU":      {lat:43.1170, lng:6.1320},
+  "Dr Valérie COPIN-SEGUIER":{lat:43.9493, lng:4.8055},
+  "Dr Lionel COUQUET":      {lat:43.1247, lng:6.0088},
+  "Dr Matthieu DEBEYNE":    {lat:43.8344, lng:5.7869},
+  "Dr Isabelle DELAROZIERE":{lat:43.2680, lng:5.3870},
+  "Dr Nathalie DELVAUX":    {lat:43.3311, lng:5.1055},
+  "Dr Richard DERMADIROSSIAN":{lat:43.2682, lng:5.3872},
+  "Dr Richard DERMADIROSSIAN ":{lat:43.2682, lng:5.3872},
+  "Dr Flavie DERYNCK":      {lat:43.6767, lng:4.6278},
+  "Dr Bruno GEPNER":        {lat:43.5297, lng:5.4474},
+  "Dr Joelle GHARIANI":     {lat:43.2900, lng:5.3780},
+  "Dr Sophie GOUDON":       {lat:43.2678, lng:5.3868},
+  "Dr Noé JEDWAB":          {lat:43.3340, lng:5.4150},
+  "Dr Morgane PRADNIES":    {lat:43.8339, lng:5.0397},
+  "Dr David SOFFER":        {lat:43.2676, lng:5.3865},
+  "Dr Sophie TRARIEU":      {lat:43.9492, lng:4.8053},
+  "Dr Odile VINCENTI-DARBON":{lat:43.2674, lng:5.3863},
+  "Dr Manie SAHEBJAM":      {lat:43.5140, lng:5.4260},
+  "Dr Alexia RAMARD":       {lat:43.3358, lng:5.4805},
+  "Dr Clémentine LORRACH":  {lat:43.2588, lng:5.3764},
+  "Dr Héloïse - Anne Bernard":{lat:43.3360, lng:5.4808},
+  "Dr Maud KERIEL GASCOU":  {lat:43.5142, lng:5.4262},
+  "Dr Olivier NEUVILLE":    {lat:43.8455, lng:5.2062},
+  // PSYCHOLOGUES
+  "Orlane VINCENT":         {lat:44.2432, lng:5.0714},
+  "Lea CELANT":             {lat:43.5376, lng:6.4625},
+  "Jean-Michel DUBOIS":     {lat:43.2882, lng:5.8620},
+  "Delphine BIGNON":        {lat:43.6416, lng:5.0983},
+  "Laura FOFANA":           {lat:43.7101, lng:7.2620},
+  "Livia ZANCHET":          {lat:43.5808, lng:7.1282},
+  "Mathieu CARRON":         {lat:43.4252, lng:6.7681},
+  "François-Benoit VIALATTE":{lat:43.4330, lng:6.7370},
+  "Jennifer DAINESI":       {lat:43.7098, lng:7.2617},
+  "Clémentine CLERC":       {lat:43.2670, lng:5.3860},
+  "Chloé DE MIERRY":        {lat:43.7095, lng:7.2614},
+  "Elodie GUGLIERI":        {lat:43.2948, lng:5.5677},
+};
+
+// ══════════════════════════════════════════════════════
+// CONFIG CSV
+// ══════════════════════════════════════════════════════
+const CSV_HEBERG  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRNMNWUvEs8lca8a0rLbjAt4SywTQaAtxCI4Ro8xOOGvbkSP0SfApPrhcophOaXUcj1vp3brD5TrXHP/pub?gid=0&single=true&output=csv';
+const CSV_MEDECIN = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRNMNWUvEs8lca8a0rLbjAt4SywTQaAtxCI4Ro8xOOGvbkSP0SfApPrhcophOaXUcj1vp3brD5TrXHP/pub?gid=821861970&single=true&output=csv';
+const CSV_PSY     = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRNMNWUvEs8lca8a0rLbjAt4SywTQaAtxCI4Ro8xOOGvbkSP0SfApPrhcophOaXUcj1vp3brD5TrXHP/pub?gid=1839868908&single=true&output=csv';
+const CSV_ASSOC   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRNMNWUvEs8lca8a0rLbjAt4SywTQaAtxCI4Ro8xOOGvbkSP0SfApPrhcophOaXUcj1vp3brD5TrXHP/pub?gid=1073761863&single=true&output=csv';
+
+const HC = {
+  FAM:{fill:'#f4a7b9',dark:'#c1607a'}, MAS:{fill:'#a8d5ba',dark:'#5a9972'},
+  FV: {fill:'#aec6e8',dark:'#4a82b8'}, FH: {fill:'#f7c89b',dark:'#c87e3a'},
+  EANM:{fill:'#c3b1e1',dark:'#7a5aa8'},HI: {fill:'#f9e4b7',dark:'#b8962a'},
+};
+const LC = {
+  medecin:{fill:'#b8d8f0',dark:'#2e7fc1'},
+  psy:    {fill:'#d4b8f0',dark:'#7c3fc1'},
+};
+const MED_TYPE_COLORS = {
+  'Psychiatre':  {fill:'#b8d8f0', dark:'#2e7fc1'},
+  'Psychiatres': {fill:'#b8d8f0', dark:'#2e7fc1'},
+  'Généraliste': {fill:'#b8dfc8', dark:'#3a8a56'},
+  'Generaliste': {fill:'#b8dfc8', dark:'#3a8a56'},
+  'Généralistes':{fill:'#b8dfc8', dark:'#3a8a56'},
+  'Generalistes':{fill:'#b8dfc8', dark:'#3a8a56'},
+};
+const MED_FALLBACK_COLORS = [
+  {fill:'#f4a7b9', dark:'#c1607a'},
+  {fill:'#f7c89b', dark:'#c87e3a'},
+  {fill:'#c3b1e1', dark:'#7a5aa8'},
+  {fill:'#f9e4b7', dark:'#b8962a'},
+];
+function getMedTypes(){
+  return [...new Set(MEDECINS_DATA.map(e=>(e.type||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+}
+function getMedTypeColor(type){
+  const t=(type||'').trim();
+  if(MED_TYPE_COLORS[t]) return MED_TYPE_COLORS[t];
+  const types=getMedTypes();
+  const idx=Math.max(0,types.indexOf(t)) % MED_FALLBACK_COLORS.length;
+  return MED_FALLBACK_COLORS[idx] || LC.medecin;
+}
+const AC = {
+  'GEM':         {fill:'#fdd9b5', dark:'#e07b39'},
+  'Asso locale': {fill:'#b8dfc8', dark:'#3a8a56'},
+  'Aspéro Café': {fill:'#f4a7b9', dark:'#c1607a'},
+};
+
+let HEBERG=[], MEDECINS_DATA=[], PSYCHOS_DATA=[], ASSOC=[];
+const state = { hTypes:new Set(['FAM','MAS','FV','FH','EANM','HI']), mTypes:new Set(), lCats:new Set(['medecin','psy']), hSel:null, mSel:null, pSel:null, lSel:null };
+
+// ══════════════════════════════════════════════════════
+// CSV PARSER
+// ══════════════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = splitLine(lines[0]).map(h=>h.trim().replace(/^"|"$/g,''));
+  return lines.slice(1).map(line=>{
+    const vals = splitLine(line).map(v=>v.trim().replace(/^"|"$/g,''));
+    const obj={}; headers.forEach((h,i)=>obj[h]=vals[i]||''); return obj;
+  }).filter(r=>Object.values(r).some(v=>v));
+}
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function splitLine(line) {
+  const res=[]; let cur=''; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    if(line[i]==='"'){inQ=!inQ;}
+    else if(line[i]===','&&!inQ){res.push(cur);cur='';}
+    else cur+=line[i];
+  }
+  res.push(cur); return res;
+}
+function yes(v){ return v&&v.toLowerCase()!=='non'&&v.toLowerCase()!=='nc'&&v!==''; }
+
+// Cherche les coords dans COORDS par le nom, ou dans les colonnes LAT/LNG du CSV
+function getCoords(row, nomKey) {
+  const nom = (row[nomKey]||'').trim();
+  // Priorité 1 : colonnes LAT/LNG dans le Sheet
+  const lat = parseFloat(row['LAT']||row['Lat']||row['lat']||'');
+  const lng = parseFloat(row['LNG']||row['Lng']||row['lng']||row['LON']||row['Lon']||'');
+  if(!isNaN(lat)&&!isNaN(lng)&&lat!==0) return {lat,lng};
+  // Priorité 2 : table COORDS
+  if(COORDS[nom]) return COORDS[nom];
+  // Priorité 3 : cherche correspondance partielle
+  for(const key of Object.keys(COORDS)){
+    if(nom.toLowerCase().includes(key.toLowerCase())||key.toLowerCase().includes(nom.toLowerCase())) return COORDS[key];
+  }
+  return null;
+}
+
+// ══════════════════════════════════════════════════════
+// CHARGEMENT
+// ══════════════════════════════════════════════════════
+async function loadAll() {
+  try {
+    document.getElementById('loading-text').textContent = 'Chargement des données depuis Google Sheets…';
+    document.getElementById('loading-text').textContent = 'Téléchargement des données...';
+    const fetchWithLog = async (url, name) => {
+      document.getElementById('loading-text').textContent = 'Chargement : ' + name + '...';
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(name + ' : HTTP ' + r.status);
+      return r.text();
+    };
+    const [csvH,csvM,csvP,csvA] = await Promise.all([
+      fetchWithLog(CSV_HEBERG, 'Hébergements'),
+      fetchWithLog(CSV_MEDECIN, 'Médecins'),
+      fetchWithLog(CSV_PSY, 'Psychologues'),
+      fetchWithLog(CSV_ASSOC, 'Associatif'),
+    ]);
+
+    const rowsH = parseCSV(csvH);
+    const rowsM = parseCSV(csvM);
+    const rowsP = parseCSV(csvP);
+    const rowsA = parseCSV(csvA);
+
+    HEBERG = rowsH.map(r=>{
+      const coords = getCoords(r,'NOM');
+      if(!coords) return null;
+      return {
+        type:r['TYPE']||'', nom:r['NOM']||'', asso:r['ASSO GEST']||'',
+        ville:r['Ville']||'', cp:r['Code postal']||'', dpt:r['Dpt']||'',
+        adresse:r['ADRESSE COMPLETE']||r['Adresse']||'',
+        population:r['Population']||'',
+        tsa:r['Spécifique TSA/TED']||r['Spécifique TSA/TE']||r['Spécifique TSA/T']||'',
+        age:r['Critère age']||r['Critère âge']||'',
+        placeP:r['Place P']||r['Places permanentes']||'',
+        placeAT:r['Place AT']||r['Places temporaires']||'',
+        snoezelen:r['Snoezelen']||'', annee:r['Année ouverture']||'',
+        tel:r['Telephone']||'', mail:r['Mail']||'', site:r['Site']||'',
+        commentaire:r['Commentaire']||'',
+        lat:coords.lat, lng:coords.lng,
+      };
+    }).filter(Boolean);
+
+    MEDECINS_DATA = rowsM.map(r=>{
+      const coords = getCoords(r,'NOM');
+      if(!coords) return null;
+      return {
+        type:(r['TYPE']||'').trim(), genre:(r['Genre']||'').trim(),
+        nom:r['NOM']||'', ville:r['Ville']||'', cp:r['Code postal']||'', dpt:r['Dpt']||'',
+        adresse:r['ADRESSE COMPLETE']||r['Adresse']||'',
+        tel:r['Telephone']||'', mail:r['Mail']||'', site:r['Site']||'',
+        di:yes(r['DI']), tdah:yes(r['TDAH']),
+        tca:yes(r['TCA']), sexo:yes(r['Séxologie']||r['Sexologie']||''),
+        dpl:yes(r['DPL']||r['Dpl']), m37:yes(r['M37']),
+        visio:r['Visio ?']||r['Visio?']||'', commentaire:r['Commentaire']||'',
+        lat:coords.lat, lng:coords.lng,
+      };
+    }).filter(Boolean);
+
+    PSYCHOS_DATA = rowsP.map(r=>{
+      const coords = getCoords(r,'NOM');
+      if(!coords) return null;
+      return {
+        type:r['TYPE']||'', genre:r['Genre']||'',
+        nom:r['NOM']||'', ville:r['Ville']||'', cp:r['Code postal']||'', dpt:r['Dpt']||'',
+        adresse:r['ADRESSE COMPLETE']||r['Adresse']||'',
+        tel:r['Telephone']||'', mail:r['Mail']||'', site:r['Site']||'',
+        di:yes(r['DI']), tdah:yes(r['TDAH']),
+        hpi:yes(r['HPI']), tca:yes(r['TCA']),
+        sexo:yes(r['Séxologie']||r['Sexologie']||r['sexologie']||''),
+        hab:yes(r['Habiletés Sociales']||r['Habiletes Sociales']||r['habiletés sociales']||''),
+        m37:yes(r['M37']), visio:r['Visio ?']||r['Visio?']||'',
+        tarif:r['Tarif']||'', commentaire:r['Commentaire']||'',
+        lat:coords.lat, lng:coords.lng,
+      };
+    }).filter(Boolean);
+
+    ASSOC = rowsA.map(r=>{
+      const coords = getCoords(r,'NOM');
+      if(!coords) return null;
+      return {
+        type: r['TYPE']||'',
+        nom:  r['NOM']||'',
+        adresse: r['ADRESSE COMPLETE']||r['Adresse']||'',
+        ville: r['Ville']||'', cp: r['Code postal']||'', dpt: r['Dpt']||'',
+        tel:  r['Telephone']||'', mail: r['Mail']||'', site: r['Site']||'',
+        annee: r['Année de creation']||r['Annee de creation']||'',
+        association: r['Association']||'',
+        commentaire: r['Commentaire']||'',
+        lat: coords.lat, lng: coords.lng,
+      };
+    }).filter(Boolean);
+
+    fillDeptSelect('h-dept', HEBERG);
+    fillDeptSelect('m-dept', MEDECINS_DATA);
+    fillDeptSelect('p-dept', PSYCHOS_DATA);
+    fillDeptSelect('a-dept', ASSOC);
+    initMedTypeFilter();
+    initMaps();
+    renderM(); // Les autres cartes s'initialisent au clic
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString('fr-FR');
+    document.getElementById('loading').classList.add('hidden');
+  } catch(err) {
+    console.error('Erreur loadAll:', err);
+    document.getElementById('loading-text').innerHTML = '⚠️ Erreur : ' + err.message + '<br><small style="color:#aaa">Voir console (F12) pour détails</small>';
+  }
+}
+
+function fillDeptSelect(id,data) {
+  const sel=document.getElementById(id);
+  [...new Set(data.map(e=>e.dpt).filter(Boolean))].sort().forEach(d=>{
+    const o=document.createElement('option'); o.value=d; o.textContent=`Dép. ${d}`; sel.appendChild(o);
+  });
+}
+function initMedTypeFilter(){
+  const menu=document.getElementById('m-type-menu');
+  if(!menu) return;
+  const types=getMedTypes();
+  const defaultTypes=types.filter(t=>t.toLowerCase().includes('psychiatre'));
+  state.mTypes = new Set(defaultTypes.length ? defaultTypes : types);
+  menu.innerHTML = types.map(t=>{
+    const checked = state.mTypes.has(t) ? ' checked' : '';
+    const safe = escapeHtml(t);
+    return `<label><input type="checkbox" value="${safe}"${checked} onchange="toggleMedType(this)"> ${safe}</label>`;
+  }).join('');
+  updateMedTypeLabel();
+}
+function toggleMedType(cb){
+  const type=cb.value;
+  if(cb.checked) state.mTypes.add(type);
+  else state.mTypes.delete(type);
+  updateMedTypeLabel();
+  renderM();
+}
+function updateMedTypeLabel(){
+  const label=document.getElementById('m-type-label');
+  if(!label) return;
+  const types=getMedTypes();
+  if(!state.mTypes.size) label.textContent='Aucune';
+  else if(state.mTypes.size===types.length) label.textContent='Toutes';
+  else if(state.mTypes.size===1) label.textContent=[...state.mTypes][0];
+  else label.textContent=`${state.mTypes.size} spécialités`;
+}
+function resetMedTypeFilter(){
+  const types=getMedTypes();
+  const defaultTypes=types.filter(t=>t.toLowerCase().includes('psychiatre'));
+  state.mTypes = new Set(defaultTypes.length ? defaultTypes : types);
+  document.querySelectorAll('#m-type-menu input[type="checkbox"]').forEach(cb=>{ cb.checked = state.mTypes.has(cb.value); });
+  updateMedTypeLabel();
+}
+
+// ══════════════════════════════════════════════════════
+// MAPS
+// ══════════════════════════════════════════════════════
+let mapH, mapM, mapP, mapA;
+const hMarkers={}, mMarkers={}, pMarkers={}, aMarkers={};
+
+function makeIcon(fill,dark) {
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="26" height="34" viewBox="0 0 26 34">
+    <path d="M13 0C5.82 0 0 5.82 0 13c0 8.85 13 21 13 21S26 21.85 26 13C26 5.82 20.18 0 13 0z" fill="${fill}" stroke="${dark}" stroke-width="2"/>
+    <circle cx="13" cy="13" r="5" fill="${dark}"/></svg>`;
+  return L.divIcon({html:svg,className:'',iconSize:[26,34],iconAnchor:[13,34],popupAnchor:[0,-34]});
+}
+function addLegend(map,items) {
+  const ctrl=L.control({position:'bottomright'});
+  ctrl.onAdd=()=>{
+    const d=L.DomUtil.create('div','map-legend');
+    d.innerHTML=`<div class="legend-title">Légende</div>`+items.map(([l,f,dk])=>`<div class="legend-row"><div class="legend-dot" style="background:${f};border:2px solid ${dk}"></div>${l}</div>`).join('');
+    return d;
+  };
+  ctrl.addTo(map);
+}
+const mapsInited = {h:false, m:false, p:false, a:false};
+
+function initMapH() {
+  if(mapsInited.h) return; mapsInited.h=true;
+  mapH=L.map('map-h',{zoomControl:true}).setView([43.45,5.2],9);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(mapH);
+  addLegend(mapH,Object.entries(HC).map(([k,v])=>[k,v.fill,v.dark]));
+  HEBERG.forEach((e,i)=>{
+    const c=HC[e.type]||{fill:'#ccc',dark:'#888'};
+    const m=L.marker([e.lat,e.lng],{icon:makeIcon(c.fill,c.dark)}).addTo(mapH);
+    m.on('click',()=>selectH(i)); hMarkers[i]=m;
+  });
+  mapH.on('moveend',()=>renderH());
+}
+function initMapM() {
+  if(mapsInited.m) return; mapsInited.m=true;
+  mapM=L.map('map-m',{zoomControl:true}).setView([43.7,5.8],7);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(mapM);
+  addLegend(mapM,getMedTypes().map(t=>{ const c=getMedTypeColor(t); return [t,c.fill,c.dark]; }));
+  MEDECINS_DATA.forEach((e,i)=>{
+    const c=getMedTypeColor(e.type);
+    const m=L.marker([e.lat,e.lng],{icon:makeIcon(c.fill,c.dark)}).addTo(mapM);
+    m.on('click',()=>selectM(i)); mMarkers[i]=m;
+  });
+  mapM.on('moveend',()=>renderM());
+}
+function initMapP() {
+  if(mapsInited.p) return; mapsInited.p=true;
+  mapP=L.map('map-p',{zoomControl:true}).setView([43.7,5.8],7);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(mapP);
+  addLegend(mapP,[['Psychologue',LC.psy.fill,LC.psy.dark]]);
+  PSYCHOS_DATA.forEach((e,i)=>{
+    const m=L.marker([e.lat,e.lng],{icon:makeIcon(LC.psy.fill,LC.psy.dark)}).addTo(mapP);
+    m.on('click',()=>selectP(i)); pMarkers[i]=m;
+  });
+  mapP.on('moveend',()=>renderP());
+}
+function initMapA() {
+  if(mapsInited.a) return; mapsInited.a=true;
+  mapA=L.map('map-a',{zoomControl:true}).setView([43.6,5.3],8);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(mapA);
+  addLegend(mapA,[['GEM',AC['GEM'].fill,AC['GEM'].dark],['Asso locale',AC['Asso locale'].fill,AC['Asso locale'].dark],['Aspéro Café',AC['Aspéro Café'].fill,AC['Aspéro Café'].dark]]);
+  ASSOC.forEach((e,i)=>{
+    const c=AC[e.type]||{fill:'#ccc',dark:'#888'};
+    const m=L.marker([e.lat,e.lng],{icon:makeIcon(c.fill,c.dark)}).addTo(mapA);
+    m.on('click',()=>selectA(i)); aMarkers[i]=m;
+  });
+  mapA.on('moveend',()=>renderA());
+}
+function initMaps() {
+  // Initialise seulement la carte médecins (visible par défaut)
+  initMapM();
+}
+
+
+// ══════════════════════════════════════════════════════
+// MOBILE : filtres repliables et liste en tiroir
+// ══════════════════════════════════════════════════════
+function sectionShortToId(id){
+  return id==='h' ? 'hebergements' : id==='m' ? 'medecins' : id==='p' ? 'psychologues' : 'associatif';
+}
+function getSectionEl(id){
+  return document.getElementById('sec-'+sectionShortToId(id));
+}
+function isMobileLayout(){
+  return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+}
+function toggleMobileList(id){
+  const sec=getSectionEl(id); if(!sec) return;
+  sec.classList.toggle('mobile-list-open');
+  if(sec.classList.contains('mobile-list-open')) sec.classList.remove('mobile-filters-open');
+  setTimeout(()=>{ const map=getMap(id); if(map) map.invalidateSize(); },230);
+}
+function openMobileList(id){
+  if(!isMobileLayout()) return;
+  const sec=getSectionEl(id); if(!sec) return;
+  sec.classList.add('mobile-list-open');
+  sec.classList.remove('mobile-filters-open');
+}
+function closeMobileList(id){
+  if(!isMobileLayout()) return;
+  const sec=getSectionEl(id); if(sec) sec.classList.remove('mobile-list-open');
+}
+function toggleMobileFilters(id){
+  const sec=getSectionEl(id); if(!sec) return;
+  sec.classList.toggle('mobile-filters-open');
+  if(sec.classList.contains('mobile-filters-open')) sec.classList.remove('mobile-list-open');
+}
+function closeMobilePanels(){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('mobile-list-open','mobile-filters-open'));
+}
+
+// ══════════════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════════════
+function switchSection(id,btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active','mobile-list-open','mobile-filters-open'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active'); btn.classList.add('active');
+  setTimeout(()=>{
+    if(id==='hebergements')      { initMapH(); mapH&&mapH.invalidateSize(); renderH(); }
+    else if(id==='medecins')     { initMapM(); mapM&&mapM.invalidateSize(); renderM(); }
+    else if(id==='psychologues') { initMapP(); mapP&&mapP.invalidateSize(); renderP(); }
+    else                         { initMapA(); mapA&&mapA.invalidateSize(); renderA(); }
+  },50);
+}
+function toggleBool(id,cb){const b=document.getElementById(id);const a=b.dataset.active!=='true';b.dataset.active=a;b.classList.toggle('active',a);cb();}
+
+// ══════════════════════════════════════════════════════
+// FILTRES COMMUNS : recherche latérale, zone visible et extraction
+// ══════════════════════════════════════════════════════
+const viewportMode = {h:false, m:false, p:false, a:false};
+
+function renderById(id){
+  if(id==='h') renderH();
+  else if(id==='m') renderM();
+  else if(id==='p') renderP();
+  else renderA();
+}
+function getBaseFiltered(id){
+  if(id==='h') return filterH();
+  if(id==='m') return filterM();
+  if(id==='p') return filterP();
+  return filterA();
+}
+function getDataArray(id){
+  if(id==='h') return HEBERG;
+  if(id==='m') return MEDECINS_DATA;
+  if(id==='p') return PSYCHOS_DATA;
+  return ASSOC;
+}
+function getMarkers(id){
+  if(id==='h') return hMarkers;
+  if(id==='m') return mMarkers;
+  if(id==='p') return pMarkers;
+  return aMarkers;
+}
+function listSearchValue(id){
+  const el = document.getElementById(id+'-list-search');
+  return el ? el.value.trim().toLowerCase() : '';
+}
+function matchesSidebarSearch(id,e){
+  const q = listSearchValue(id);
+  if(!q) return true;
+  const hay = [e.nom, e.ville, e.cp, e.dpt, e.adresse, e.type, e.genre, e.association].filter(Boolean).join(' ').toLowerCase();
+  return hay.includes(q);
+}
+function matchesMapBounds(id,e){
+  const map = getMap(id);
+  if(!map) return true;
+  if(!e || isNaN(e.lat) || isNaN(e.lng)) return false;
+  return map.getBounds().pad(0.02).contains([e.lat,e.lng]);
+}
+function applyPostFilters(id,rows){
+  return rows.filter(e => matchesSidebarSearch(id,e) && matchesMapBounds(id,e));
+}
+function getVisibleRows(id){
+  return applyPostFilters(id, getBaseFiltered(id)).sort((a,b)=>(a.nom||'').localeCompare(b.nom||'','fr'));
+}
+function clearSidebarSearch(id){
+  const el = document.getElementById(id+'-list-search');
+  if(el) el.value='';
+}
+function clearZoneState(id){
+  const map = getMap(id);
+  const input = document.getElementById('zone-'+id);
+  const clearBtn = document.getElementById('zone-clear-'+id);
+  const sugg = document.getElementById('zone-sugg-'+id);
+  if(input) input.value='';
+  if(clearBtn) clearBtn.style.display='none';
+  if(sugg) sugg.style.display='none';
+  if(zoneMarkers[id] && map) { map.removeLayer(zoneMarkers[id]); zoneMarkers[id]=null; }
+}
+function resetMapView(id){
+  const map = getMap(id);
+  if(!map || !defaultViews[id]) return;
+  const dv = defaultViews[id];
+  map.flyTo(dv.center, dv.zoom, {duration:0.8});
+}
+function formatAddress(e){
+  const city = [e.cp, e.ville].filter(Boolean).join(' ');
+  return [e.adresse, city].filter(Boolean).join(', ') || e.ville || 'Adresse non renseignée';
+}
+function sectionLabel(id){
+  return id==='h' ? 'hébergements' : id==='m' ? 'médecins' : id==='p' ? 'psychologues' : 'structures associatives';
+}
+function formatExportLine(e){
+  return `${e.nom || 'Sans nom'} — ${formatAddress(e)}`;
+}
+function openExport(id){
+  const rows = getVisibleRows(id);
+  const text = rows.length ? rows.map(formatExportLine).join('\n') : 'Aucun résultat affiché.';
+  document.getElementById('export-title').textContent = 'Liste à copier';
+  document.getElementById('export-subtitle').textContent = `${rows.length} ${sectionLabel(id)} actuellement affiché${rows.length>1?'s':''} dans le panneau latéral.`;
+  const area = document.getElementById('export-text');
+  area.value = text;
+  document.getElementById('copy-export-btn').textContent = 'Copier';
+  document.getElementById('export-modal').classList.add('open');
+  setTimeout(()=>{area.focus(); area.select();},50);
+}
+function closeExport(){
+  document.getElementById('export-modal').classList.remove('open');
+}
+function copyExportText(){
+  const area = document.getElementById('export-text');
+  area.focus(); area.select();
+  const done = () => { document.getElementById('copy-export-btn').textContent = 'Copié ✓'; };
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(area.value).then(done).catch(()=>{ document.execCommand('copy'); done(); });
+  } else {
+    document.execCommand('copy'); done();
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// HÉBERGEMENTS
+// ══════════════════════════════════════════════════════
+function toggleHType(btn){const t=btn.dataset.type;btn.classList.toggle('active');state.hTypes.has(t)?state.hTypes.delete(t):state.hTypes.add(t);renderH();}
+function resetH(){
+  state.hTypes=new Set(['FAM','MAS','FV','FH','EANM','HI']);state.hSel=null;
+  document.getElementById('h-search').value='';document.getElementById('h-dept').value='';clearSidebarSearch('h');clearZoneState('h');resetMapView('h');
+  document.querySelectorAll('#sec-hebergements .chip[data-type]').forEach(b=>b.classList.add('active'));
+  ['h-tsa','h-snoe'].forEach(id=>{const b=document.getElementById(id);b.classList.remove('active');b.dataset.active='false';});
+  document.getElementById('detail-h').style.display='none';renderH();
+}
+function filterH(){
+  const q=document.getElementById('h-search').value.toLowerCase();
+  const dept=document.getElementById('h-dept').value;
+  const tsa=document.getElementById('h-tsa').dataset.active==='true';
+  const snoe=document.getElementById('h-snoe').dataset.active==='true';
+  return HEBERG.filter(e=>{
+    if(!state.hTypes.has(e.type))return false;
+    if(dept&&e.dpt!==dept)return false;
+    if(tsa&&!yes(e.tsa))return false;
+    if(snoe&&(e.snoezelen||'').toLowerCase()!=='oui')return false;
+    if(q&&!e.nom.toLowerCase().includes(q)&&!e.ville.toLowerCase().includes(q))return false;
+    return true;
+  });
+}
+function renderH(){
+  const vis=getVisibleRows('h'); const visSet=new Set(vis.map(e=>HEBERG.indexOf(e)));
+  document.getElementById('h-count').textContent=vis.length;
+  Object.entries(hMarkers).forEach(([i,m])=>{visSet.has(Number(i))?(mapH.hasLayer(m)||m.addTo(mapH)):(mapH.hasLayer(m)&&mapH.removeLayer(m));});
+  document.getElementById('h-sidebar-head').textContent=`${vis.length} établissement${vis.length!==1?'s':''} affiché${vis.length!==1?'s':''}`;
+  const list=document.getElementById('h-sidebar-list');
+  if(!vis.length){list.innerHTML=`<div class="empty"><div class="emoji">🔍</div><p>Aucun résultat</p></div>`;return;}
+  list.innerHTML=vis.map(e=>{
+    const i=HEBERG.indexOf(e);const c=HC[e.type]||{fill:'#ccc',dark:'#888'};
+    const tags=[];
+    if(yes(e.tsa))tags.push(`<span class="tag" style="background:${c.fill};color:${c.dark}">TSA</span>`);
+    if((e.snoezelen||'').toLowerCase()==='oui')tags.push(`<span class="tag" style="background:#ede7f6;color:#7a5aa8">Snoezelen</span>`);
+    return `<div class="card${state.hSel===i?' active':''}" onclick="selectH(${i})" id="hcard-${i}">
+      <div class="card-dot" style="background:${c.fill};border:2px solid ${c.dark}"></div>
+      <div style="flex:1;min-width:0">
+        <div class="card-type" style="color:${c.dark}">${e.type}</div>
+        <div class="card-name">${e.nom}</div>
+        <div class="card-ville">📍 ${e.ville}</div>
+        ${tags.length?`<div class="card-tags">${tags.join('')}</div>`:''}
+      </div></div>`;
+  }).join('');
+}
+function selectH(i){
+  closeMobileList('h');
+  state.hSel=i;const e=HEBERG[i];const c=HC[e.type]||{fill:'#ccc',dark:'#888'};
+  mapH.flyTo([e.lat,e.lng],13,{duration:.8});
+  document.querySelectorAll('#h-sidebar-list .card').forEach(x=>x.classList.remove('active'));
+  const card=document.getElementById('hcard-'+i);if(card){card.classList.add('active');card.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  const specs=[];
+  if(yes(e.tsa))specs.push(`<span class="pill" style="background:#c1607a">🧩 TSA/TED</span>`);
+  if((e.snoezelen||'').toLowerCase()==='oui')specs.push(`<span class="pill" style="background:#7a5aa8">💆 Snoezelen</span>`);
+  const actions=[];
+  actions.push(navBtn(e.adresse||e.ville, e.lat, e.lng));
+  if(e.tel)actions.push(`<a class="action-btn" href="tel:${e.tel}">📞 ${e.tel}</a>`);
+  if(e.mail)actions.push(`<a class="action-btn" href="mailto:${e.mail}">✉️ Mail</a>`);
+  if(e.site)actions.push(`<a class="action-btn" href="${e.site}" target="_blank">🌐 Site</a>`);
+  document.getElementById('detail-h').style.display='block';
+  document.getElementById('detail-h').innerHTML=`
+    <button class="close-btn" onclick="document.getElementById('detail-h').style.display='none'">✕</button>
+    <div class="detail-head" style="border-top:4px solid ${c.dark}">
+      <div class="detail-type" style="color:${c.dark}">${e.type}</div>
+      <div class="detail-name">${e.nom}</div><div class="detail-sub">${e.asso}</div>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-field"><label>Public</label><p>${e.population||'—'}</p></div>
+      <div class="detail-field"><label>Âge</label><p>${e.age||'—'}</p></div>
+      <div class="detail-field"><label>Ouverture</label><p>${e.annee||'—'}</p></div>
+      <div class="detail-field"><label>Places perm.</label><p>${e.placeP||'—'}</p></div>
+      <div class="detail-field"><label>Places temp.</label><p>${e.placeAT||'—'}</p></div>
+      <div class="detail-field full"><label>Adresse</label><p>${e.adresse ? e.adresse : e.ville+' ('+e.cp+')'}</p></div>
+    </div>
+    ${specs.length?`<div class="detail-pills">${specs.join('')}</div>`:''}
+    ${e.commentaire?`<div class="detail-comment"><label>Commentaire</label><p>${e.commentaire}</p></div>`:''}
+    ${actions.length?'<div class="detail-actions">'+actions.join('')+'</div>':''}`;
+}
+
+// ══════════════════════════════════════════════════════
+// MÉDECINS
+// ══════════════════════════════════════════════════════
+function resetM(){
+  document.getElementById('m-search').value=''; document.getElementById('m-dept').value=''; clearSidebarSearch('m'); clearZoneState('m'); resetMedTypeFilter(); resetMapView('m');
+  ['m-di','m-tdah','m-tca','m-sexo','m-dpl','m-m37','m-visio'].forEach(id=>{const b=document.getElementById(id);b.classList.remove('active');b.dataset.active='false';});
+  state.mSel=null; document.getElementById('detail-m').style.display='none'; renderM();
+}
+function filterM(){
+  const q=document.getElementById('m-search').value.toLowerCase();
+  const dept=document.getElementById('m-dept').value;
+  const di=document.getElementById('m-di').dataset.active==='true';
+  const tdah=document.getElementById('m-tdah').dataset.active==='true';
+  const tca=document.getElementById('m-tca').dataset.active==='true';
+  const sexo=document.getElementById('m-sexo').dataset.active==='true';
+  const dpl=document.getElementById('m-dpl').dataset.active==='true';
+  const m37=document.getElementById('m-m37').dataset.active==='true';
+  const visio=document.getElementById('m-visio').dataset.active==='true';
+  return MEDECINS_DATA.filter(e=>{
+    if(state.mTypes.size && !state.mTypes.has((e.type||'').trim())) return false;
+    if(!state.mTypes.size) return false;
+    if(dept&&e.dpt!==dept) return false;
+    if(di&&!e.di) return false;
+    if(tdah&&!e.tdah) return false;
+    if(tca&&!e.tca) return false;
+    if(sexo&&!e.sexo) return false;
+    if(dpl&&!e.dpl) return false;
+    if(m37&&!e.m37) return false;
+    if(visio&&(e.visio||'').toLowerCase()!=='oui') return false;
+    if(q&&!e.nom.toLowerCase().includes(q)&&!e.ville.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+function renderM(){
+  const vis=getVisibleRows('m');
+  const visSet=new Set(vis.map(e=>MEDECINS_DATA.indexOf(e)));
+  document.getElementById('m-count').textContent=vis.length;
+  Object.entries(mMarkers).forEach(([i,m])=>{visSet.has(Number(i))?(mapM.hasLayer(m)||m.addTo(mapM)):(mapM.hasLayer(m)&&mapM.removeLayer(m));});
+  document.getElementById('m-sidebar-head').textContent=`${vis.length} médecin${vis.length!==1?'s':''}`;
+  const list=document.getElementById('m-sidebar-list');
+  if(!vis.length){list.innerHTML=`<div class="empty"><div class="emoji">🔍</div><p>Aucun résultat</p></div>`;return;}
+  list.innerHTML=vis.map(e=>{
+    const i=MEDECINS_DATA.indexOf(e);
+    const c=getMedTypeColor(e.type);
+    const tags=[];
+    if(e.di)tags.push(`<span class="tag" style="background:#b8d8f0;color:#2e7fc1">DI</span>`);
+    if(e.tdah)tags.push(`<span class="tag" style="background:#b8d8f0;color:#2e7fc1">TDAH</span>`);
+    if(e.tca)tags.push(`<span class="tag" style="background:#fce4ec;color:#c1607a">TCA</span>`);
+    if(e.sexo)tags.push(`<span class="tag" style="background:#fce4ec;color:#c1607a">Sexologie</span>`);
+    if(e.dpl)tags.push(`<span class="tag" style="background:#d0e8f7;color:#2e7fc1">DPL</span>`);
+    if(e.m37)tags.push(`<span class="tag" style="background:#d8eac8;color:#5a7a3a">M37</span>`);
+    if((e.visio||'').toLowerCase()==='oui')tags.push(`<span class="tag" style="background:#e8f4e8;color:#3a7a3a">Visio</span>`);
+    return `<div class="card${state.mSel===i?' active':''}" onclick="selectM(${i})" id="mcard-${i}">
+      <div class="card-dot" style="background:${c.fill};border:2px solid ${c.dark}"></div>
+      <div style="flex:1;min-width:0">
+        <div class="card-type" style="color:${c.dark}">${e.type}${e.genre?' · '+e.genre:''}</div>
+        <div class="card-name">${e.nom}</div>
+        <div class="card-ville">📍 ${e.ville} · dép. ${e.dpt}</div>
+        ${tags.length?`<div class="card-tags">${tags.join('')}</div>`:''}
+      </div></div>`;
+  }).join('');
+}
+function selectM(i){
+  closeMobileList('m');
+  state.mSel=i;
+  const e=MEDECINS_DATA[i];
+  const c=getMedTypeColor(e.type);
+  mapM.flyTo([e.lat,e.lng],13,{duration:.8});
+  document.querySelectorAll('#m-sidebar-list .card').forEach(x=>x.classList.remove('active'));
+  const card=document.getElementById('mcard-'+i);
+  if(card){card.classList.add('active');card.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  const specs=[];
+  if(e.di)specs.push(`<span class="pill" style="background:#5a9972">🧩 DI</span>`);
+  if(e.tdah)specs.push(`<span class="pill" style="background:#e07b39">⚡ TDAH</span>`);
+  if(e.tca)specs.push(`<span class="pill" style="background:#c1607a">🍽️ TCA</span>`);
+  if(e.sexo)specs.push(`<span class="pill" style="background:#c1607a">❤️ Sexologie</span>`);
+  if(e.dpl)specs.push(`<span class="pill" style="background:#2e7fc1">🏥 DPL</span>`);
+  if(e.m37)specs.push(`<span class="pill" style="background:#5a7a3a">📋 M37</span>`);
+  if((e.visio||'').toLowerCase()==='oui')specs.push(`<span class="pill" style="background:#3a7a3a">💻 Visio</span>`);
+  const actions=[];
+  actions.push(navBtn(e.adresse||e.ville, e.lat, e.lng));
+  if(e.tel)actions.push(`<a class="action-btn" href="tel:${e.tel}">📞 ${e.tel}</a>`);
+  if(e.mail)actions.push(`<a class="action-btn" href="mailto:${e.mail}">✉️ Mail</a>`);
+  if(e.site)actions.push(`<a class="action-btn" href="${e.site}" target="_blank">🌐 Doctolib / Site</a>`);
+  const det=document.getElementById('detail-m');
+  det.style.display='block';
+  det.innerHTML=`
+    <button class="close-btn" onclick="document.getElementById('detail-m').style.display='none'">✕</button>
+    <div class="detail-head" style="border-top:4px solid ${c.dark}">
+      <div class="detail-type" style="color:${c.dark}">${e.type}${e.genre?' · '+e.genre:''}</div>
+      <div class="detail-name">${e.nom}</div>
+      <div class="detail-sub">📍 ${e.ville} (${e.cp}) — Dép. ${e.dpt}</div>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-field"><label>Visio</label><p>${e.visio||'NC'}</p></div>
+      <div class="detail-field"><label>Département</label><p>${e.dpt}</p></div>
+      ${e.adresse?'<div class="detail-field full"><label>Adresse</label><p>'+e.adresse+'</p></div>':''}
+    </div>
+    ${specs.length?`<div class="detail-pills">${specs.join('')}</div>`:''}
+    ${e.commentaire?`<div class="detail-comment"><label>Note</label><p>${e.commentaire}</p></div>`:''}
+    ${actions.length?'<div class="detail-actions">'+actions.join('')+'</div>':''}`;
+}
+
+// ══════════════════════════════════════════════════════
+// PSYCHOLOGUES
+// ══════════════════════════════════════════════════════
+function resetP(){
+  document.getElementById('p-search').value=''; document.getElementById('p-dept').value=''; clearSidebarSearch('p'); clearZoneState('p'); resetMapView('p');
+  ['p-di','p-tdah','p-hpi','p-tca','p-sexo','p-hab','p-m37','p-visio'].forEach(id=>{const b=document.getElementById(id);b.classList.remove('active');b.dataset.active='false';});
+  state.pSel=null; document.getElementById('detail-p').style.display='none'; renderP();
+}
+function filterP(){
+  const q=document.getElementById('p-search').value.toLowerCase();
+  const dept=document.getElementById('p-dept').value;
+  const di=document.getElementById('p-di').dataset.active==='true';
+  const tdah=document.getElementById('p-tdah').dataset.active==='true';
+  const hpi=document.getElementById('p-hpi').dataset.active==='true';
+  const tca=document.getElementById('p-tca').dataset.active==='true';
+  const sexo=document.getElementById('p-sexo').dataset.active==='true';
+  const hab=document.getElementById('p-hab').dataset.active==='true';
+  const m37=document.getElementById('p-m37').dataset.active==='true';
+  const visio=document.getElementById('p-visio').dataset.active==='true';
+  return PSYCHOS_DATA.filter(e=>{
+    if(dept&&e.dpt!==dept) return false;
+    if(di&&!e.di) return false;
+    if(tdah&&!e.tdah) return false;
+    if(hpi&&!e.hpi) return false;
+    if(tca&&!e.tca) return false;
+    if(sexo&&!e.sexo) return false;
+    if(hab&&!e.hab) return false;
+    if(m37&&!e.m37) return false;
+    if(visio&&(e.visio||'').toLowerCase()!=='oui') return false;
+    if(q&&!e.nom.toLowerCase().includes(q)&&!e.ville.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+function renderP(){
+  const vis=getVisibleRows('p');
+  const visSet=new Set(vis.map(e=>PSYCHOS_DATA.indexOf(e)));
+  document.getElementById('p-count').textContent=vis.length;
+  Object.entries(pMarkers).forEach(([i,m])=>{visSet.has(Number(i))?(mapP.hasLayer(m)||m.addTo(mapP)):(mapP.hasLayer(m)&&mapP.removeLayer(m));});
+  document.getElementById('p-sidebar-head').textContent=`${vis.length} psychologue${vis.length!==1?'s':''}`;
+  const list=document.getElementById('p-sidebar-list');
+  if(!vis.length){list.innerHTML=`<div class="empty"><div class="emoji">🔍</div><p>Aucun résultat</p></div>`;return;}
+  list.innerHTML=vis.map(e=>{
+    const i=PSYCHOS_DATA.indexOf(e);
+    const tags=[];
+    if(e.di)tags.push(`<span class="tag" style="background:#d4b8f0;color:#7c3fc1">DI</span>`);
+    if(e.tdah)tags.push(`<span class="tag" style="background:#d4b8f0;color:#7c3fc1">TDAH</span>`);
+    if(e.hpi)tags.push(`<span class="tag" style="background:#fff3b0;color:#8a6a00">HPI</span>`);
+    if(e.tca)tags.push(`<span class="tag" style="background:#fce4ec;color:#c1607a">TCA</span>`);
+    if(e.sexo)tags.push(`<span class="tag" style="background:#fce4ec;color:#c1607a">Sexologie</span>`);
+    if(e.hab)tags.push(`<span class="tag" style="background:#e8f4e8;color:#3a7a3a">Hab. Sociales</span>`);
+    if(e.m37)tags.push(`<span class="tag" style="background:#d8eac8;color:#5a7a3a">M37</span>`);
+    if((e.visio||'').toLowerCase()==='oui')tags.push(`<span class="tag" style="background:#e8f4e8;color:#3a7a3a">Visio</span>`);
+    return `<div class="card${state.pSel===i?' active':''}" onclick="selectP(${i})" id="pcard-${i}">
+      <div class="card-dot" style="background:${LC.psy.fill};border:2px solid ${LC.psy.dark}"></div>
+      <div style="flex:1;min-width:0">
+        <div class="card-type" style="color:${LC.psy.dark}">${e.type}${e.genre?' · '+e.genre:''}</div>
+        <div class="card-name">${e.nom}</div>
+        <div class="card-ville">📍 ${e.ville} · dép. ${e.dpt}</div>
+        ${tags.length?`<div class="card-tags">${tags.join('')}</div>`:''}
+      </div></div>`;
+  }).join('');
+}
+function selectP(i){
+  closeMobileList('p');
+  state.pSel=i;
+  const e=PSYCHOS_DATA[i];
+  mapP.flyTo([e.lat,e.lng],13,{duration:.8});
+  document.querySelectorAll('#p-sidebar-list .card').forEach(x=>x.classList.remove('active'));
+  const card=document.getElementById('pcard-'+i);
+  if(card){card.classList.add('active');card.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  const specs=[];
+  if(e.di)specs.push(`<span class="pill" style="background:#5a9972">🧩 DI</span>`);
+  if(e.tdah)specs.push(`<span class="pill" style="background:#e07b39">⚡ TDAH</span>`);
+  if(e.hpi)specs.push(`<span class="pill" style="background:#d4a800">✨ HPI</span>`);
+  if(e.tca)specs.push(`<span class="pill" style="background:#c1607a">🍽️ TCA</span>`);
+  if(e.sexo)specs.push(`<span class="pill" style="background:#c1607a">❤️ Sexologie</span>`);
+  if(e.hab)specs.push(`<span class="pill" style="background:#3a7a3a">🤝 Hab. Sociales</span>`);
+  if(e.m37)specs.push(`<span class="pill" style="background:#5a7a3a">📋 M37</span>`);
+  if((e.visio||'').toLowerCase()==='oui')specs.push(`<span class="pill" style="background:#3a7a3a">💻 Visio</span>`);
+  const actions=[];
+  actions.push(navBtn(e.adresse||e.ville, e.lat, e.lng));
+  if(e.tel)actions.push(`<a class="action-btn" href="tel:${e.tel}">📞 ${e.tel}</a>`);
+  if(e.mail)actions.push(`<a class="action-btn" href="mailto:${e.mail}">✉️ Mail</a>`);
+  if(e.site)actions.push(`<a class="action-btn" href="${e.site}" target="_blank">🌐 Doctolib / Site</a>`);
+  const det=document.getElementById('detail-p');
+  det.style.display='block';
+  det.innerHTML=`
+    <button class="close-btn" onclick="document.getElementById('detail-p').style.display='none'">✕</button>
+    <div class="detail-head" style="border-top:4px solid ${LC.psy.dark}">
+      <div class="detail-type" style="color:${LC.psy.dark}">${e.type}${e.genre?' · '+e.genre:''}</div>
+      <div class="detail-name">${e.nom}</div>
+      <div class="detail-sub">📍 ${e.ville} (${e.cp}) — Dép. ${e.dpt}</div>
+    </div>
+    <div class="detail-grid">
+      ${e.tarif?`<div class="detail-field full"><label>Tarifs</label><p>${e.tarif}</p></div>`:''}
+      <div class="detail-field"><label>Visio</label><p>${e.visio||'NC'}</p></div>
+      <div class="detail-field"><label>Département</label><p>${e.dpt}</p></div>
+      ${e.adresse?'<div class="detail-field full"><label>Adresse</label><p>'+e.adresse+'</p></div>':''}
+    </div>
+    ${specs.length?`<div class="detail-pills">${specs.join('')}</div>`:''}
+    ${e.commentaire?`<div class="detail-comment"><label>Note</label><p>${e.commentaire}</p></div>`:''}
+    ${actions.length?'<div class="detail-actions">'+actions.join('')+'</div>':''}`;
+}
+
+// ══════════════════════════════════════════════════════
+// ASSOCIATIF
+// ══════════════════════════════════════════════════════
+const state_a = { aTypes: new Set(['GEM','Asso locale','Aspéro Café']), aSel: null };
+
+function toggleAType(btn){
+  const t=btn.dataset.atype; btn.classList.toggle('active');
+  state_a.aTypes.has(t)?state_a.aTypes.delete(t):state_a.aTypes.add(t); renderA();
+}
+function resetA(){
+  state_a.aTypes=new Set(['GEM','Asso locale','Aspéro Café']); state_a.aSel=null;
+  document.getElementById('a-search').value=''; document.getElementById('a-dept').value=''; clearSidebarSearch('a'); clearZoneState('a'); resetMapView('a');
+  document.querySelectorAll('#sec-associatif .chip[data-atype]').forEach(b=>b.classList.add('active'));
+  document.getElementById('detail-a').style.display='none'; renderA();
+}
+function filterA(){
+  const q=document.getElementById('a-search').value.toLowerCase();
+  const dept=document.getElementById('a-dept').value;
+  return ASSOC.filter(e=>{
+    if(!state_a.aTypes.has(e.type)) return false;
+    if(dept&&e.dpt!==dept) return false;
+    if(q&&!e.nom.toLowerCase().includes(q)&&!e.ville.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+function renderA(){
+  const vis=getVisibleRows('a');
+  const visSet=new Set(vis.map(e=>ASSOC.indexOf(e)));
+  document.getElementById('a-count').textContent=vis.length;
+  Object.entries(aMarkers).forEach(([i,m])=>{
+    visSet.has(Number(i))?(mapA.hasLayer(m)||m.addTo(mapA)):(mapA.hasLayer(m)&&mapA.removeLayer(m));
+  });
+  document.getElementById('a-sidebar-head').textContent=`${vis.length} structure${vis.length!==1?'s':''}`;
+  const list=document.getElementById('a-sidebar-list');
+  if(!vis.length){list.innerHTML=`<div class="empty"><div class="emoji">🔍</div><p>Aucun résultat</p></div>`;return;}
+  list.innerHTML=vis.map(e=>{
+    const i=ASSOC.indexOf(e); const c=AC[e.type]||{fill:'#ccc',dark:'#888'};
+    return `<div class="card${state_a.aSel===i?' active':''}" onclick="selectA(${i})" id="acard-${i}">
+      <div class="card-dot" style="background:${c.fill};border:2px solid ${c.dark}"></div>
+      <div style="flex:1;min-width:0">
+        <div class="card-type" style="color:${c.dark}">${e.type}</div>
+        <div class="card-name">${e.nom}</div>
+        ${e.association?`<div style="font-size:10px;color:#7a7068;margin-top:1px">🤝 ${e.association}</div>`:''}
+        <div class="card-ville">📍 ${e.ville}${e.annee?' · '+e.annee:''}</div>
+      </div></div>`;
+  }).join('');
+}
+function selectA(i){
+  closeMobileList('a');
+  state_a.aSel=i; const e=ASSOC[i]; const c=AC[e.type]||{fill:'#ccc',dark:'#888'};
+  mapA.flyTo([e.lat,e.lng],14,{duration:.8});
+  document.querySelectorAll('#a-sidebar-list .card').forEach(x=>x.classList.remove('active'));
+  const card=document.getElementById('acard-'+i);
+  if(card){card.classList.add('active');card.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  const actions=[];
+  actions.push(navBtn(e.adresse||e.ville, e.lat, e.lng));
+  if(e.tel)actions.push(`<a class="action-btn" href="tel:${e.tel}">📞 ${e.tel}</a>`);
+  if(e.mail)actions.push(`<a class="action-btn" href="mailto:${e.mail}">✉️ Mail</a>`);
+  if(e.site)actions.push(`<a class="action-btn" href="${e.site}" target="_blank">🌐 Site web</a>`);
+  const det=document.getElementById('detail-a');
+  det.style.display='block';
+  det.innerHTML=`
+    <button class="close-btn" onclick="document.getElementById('detail-a').style.display='none'">✕</button>
+    <div class="detail-head" style="border-top:4px solid ${c.dark}">
+      <div class="detail-type" style="color:${c.dark}">${e.type}</div>
+      <div class="detail-name">${e.nom}</div>
+      ${e.association?'<div class="detail-sub">🤝 '+e.association+'</div>':''}
+      <div class="detail-sub">📍 ${e.ville} (${e.cp}) — Dép. ${e.dpt}</div>
+    </div>
+    <div class="detail-grid">
+      ${e.annee?'<div class="detail-field"><label>Année de création</label><p>'+e.annee+'</p></div>':''}
+      <div class="detail-field"><label>Département</label><p>${e.dpt}</p></div>
+      ${e.adresse?'<div class="detail-field full"><label>Adresse</label><p>'+e.adresse+'</p></div>':''}
+    </div>
+    ${e.commentaire?`<div class="detail-comment"><label>Note</label><p>${e.commentaire}</p></div>`:''}
+    ${actions.length?'<div class="detail-actions">'+actions.join('')+'</div>':''}`;
+}
+
+
+function navBtn(adresse, lat, lng) {
+  const dest = encodeURIComponent(adresse || (lat+','+lng));
+  const url = 'https://www.google.com/maps/dir/?api=1&destination=' + dest;
+  return '<a class="action-btn" href="' + url + '" target="_blank" style="background:#e8f4e8;border-color:#5a9972;color:#2a6a3a;">🧭 Itinéraire</a>';
+}
+
+// ══════════════════════════════════════════════════════
+// RECHERCHE DE ZONE (Photon API — supporte adresses,
+// codes postaux, commerces, fautes de frappe)
+// ══════════════════════════════════════════════════════
+const zoneMarkers = {h:null, m:null, p:null, a:null};
+const defaultViews = {
+  h: {center:[43.45,5.2], zoom:9},
+  m: {center:[43.7,5.8],  zoom:7},
+  p: {center:[43.7,5.8],  zoom:7},
+  a: {center:[43.6,5.3],  zoom:8},
+};
+let zoneTimeout = null;
+
+function getMap(id) {
+  return id==='h' ? mapH : id==='m' ? mapM : id==='p' ? mapP : mapA;
+}
+
+async function onZoneInput(id) {
+  const val = document.getElementById('zone-'+id).value.trim();
+  const clearBtn = document.getElementById('zone-clear-'+id);
+  const sugg = document.getElementById('zone-sugg-'+id);
+  clearBtn.style.display = val ? 'block' : 'none';
+  if (val.length < 2) { sugg.style.display='none'; return; }
+  clearTimeout(zoneTimeout);
+  zoneTimeout = setTimeout(() => fetchSuggestions(id, val), 300);
+}
+
+async function fetchSuggestions(id, val) {
+  const sugg = document.getElementById('zone-sugg-'+id);
+  try {
+    // Photon (OpenStreetMap) : supporte adresses, POI, codes postaux, tout
+    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(val)}&limit=6&lang=fr&lat=43.5&lon=5.5`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.features || !data.features.length) {
+      sugg.style.display='none'; return;
+    }
+    sugg.innerHTML = data.features.map(f => {
+      const p = f.properties;
+      // Construire un label lisible
+      const parts = [p.name, p.street && p.housenumber ? p.housenumber+' '+p.street : p.street, p.postcode, p.city || p.town || p.village, p.country].filter(Boolean);
+      // Éviter les doublons dans le label
+      const seen = new Set();
+      const label = parts.filter(x => { if(seen.has(x)) return false; seen.add(x); return true; }).slice(0,4).join(', ');
+      const icon = p.osm_type === 'N' ? '📍' : p.type === 'city' || p.type === 'town' ? '🏙️' : p.type === 'street' ? '🛣️' : '📌';
+      const lat = f.geometry.coordinates[1];
+      const lng = f.geometry.coordinates[0];
+      return `<div class="zone-suggestion" onclick="applyZone('${id}',${lat},${lng},'${label.replace(/'/g,"\\'")}')">
+        ${icon} ${label}
+      </div>`;
+    }).join('');
+    sugg.style.display = 'block';
+  } catch(e) {
+    sugg.style.display = 'none';
+  }
+}
+
+async function searchZone(id) {
+  const val = document.getElementById('zone-'+id).value.trim();
+  document.getElementById('zone-sugg-'+id).style.display='none';
+  if (!val) { clearZone(id); return; }
+  try {
+    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(val)}&limit=1&lang=fr&lat=43.5&lon=5.5`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.features && data.features.length) {
+      const f = data.features[0];
+      const p = f.properties;
+      const label = [p.name, p.city||p.town||p.village, p.postcode].filter(Boolean).join(', ');
+      applyZone(id, f.geometry.coordinates[1], f.geometry.coordinates[0], label);
+    }
+  } catch(e) {}
+}
+
+function applyZone(id, lat, lng, label) {
+  const map = getMap(id);
+  if (!map) return;
+  document.getElementById('zone-sugg-'+id).style.display='none';
+  document.getElementById('zone-clear-'+id).style.display='block';
+  // Mettre le label dans l'input
+  const input = document.getElementById('zone-'+id);
+  if (input.value.length < 3) input.value = label;
+
+  // Supprimer ancien marqueur
+  if (zoneMarkers[id]) { map.removeLayer(zoneMarkers[id]); zoneMarkers[id]=null; }
+
+  // Marqueur pulsant
+  const icon = L.divIcon({
+    html: '<div class="zone-marker-icon"></div>',
+    className: '', iconSize:[18,18], iconAnchor:[9,9],
+  });
+  zoneMarkers[id] = L.marker([parseFloat(lat), parseFloat(lng)], {icon, zIndexOffset:1000})
+    .bindTooltip(label, {permanent:false, direction:'top', offset:[0,-10]})
+    .addTo(map);
+
+  // Zoom adaptatif selon le type de résultat
+  map.flyTo([parseFloat(lat), parseFloat(lng)], 13, {duration:0.8});
+  setTimeout(()=>renderById(id), 900);
+}
+
+function clearZone(id) {
+  const map = getMap(id);
+  clearZoneState(id);
+  if (!map) { renderById(id); return; }
+  const dv = defaultViews[id];
+  map.flyTo(dv.center, dv.zoom, {duration:0.8});
+  renderById(id);
+}
+
+// Fermer suggestions si clic ailleurs
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeExport(); });
+document.addEventListener('click', e => {
+  const typeDetails=document.getElementById('m-type-details');
+  if(typeDetails && typeDetails.open && !typeDetails.contains(e.target)) typeDetails.removeAttribute('open');
+  ['h','m','p','a'].forEach(id => {
+    const sugg = document.getElementById('zone-sugg-'+id);
+    const input = document.getElementById('zone-'+id);
+    if (sugg && !sugg.contains(e.target) && e.target !== input) {
+      sugg.style.display='none';
+    }
+  });
+});
+
+
+loadAll();
+</script>
+</body>
+</html>
