@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2.5">
+<title>Mon Réseau — répertoire médico-social</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'DM Sans',sans-serif; height:100vh; display:flex; overflow:hidden; background:#faf7f2; color:#2c2825; }
+nav { width:200px; background:#fffef9; border-right:1px solid #e8e0d5; display:flex; flex-direction:column; flex-shrink:0; padding:16px 0; }
+.logo { padding:0 16px 14px; font-family:Georgia,serif; font-size:20px; font-weight:bold; }
+.logo span { color:#c1607a; font-style:italic; }
+.nav-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#7a7068; padding:0 16px 8px; }
+.nav-btn { display:flex; align-items:center; gap:10px; padding:10px 16px; background:transparent; border:none; border-left:3px solid transparent; cursor:pointer; text-align:left; width:100%; transition:all .15s; }
+.nav-btn:hover { background:#f5f1eb; }
+.nav-btn.active { background:#f0ece6; border-left-color:#c1607a; }
+.nav-btn .ico { font-size:20px; }
+.nav-btn .nav-title { font-size:13px; font-weight:600; color:#2c2825; }
+.nav-btn .nav-sub { font-size:10px; color:#7a7068; }
+.nav-footer { margin-top:auto; padding:12px 16px; font-size:10px; color:#aaa; line-height:1.6; border-top:1px solid #e8e0d5; }
+.sync-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#5a9972; margin-right:4px; vertical-align:middle; }
+
+/* Bascule Réseau TSA / Tout le répertoire */
+.reseau-toggle { margin:0 12px 14px; border:1.5px solid #e8e0d5; border-radius:50px; background:#faf7f2; display:flex; padding:3px; gap:2px; }
+.reseau-toggle button { flex:1; border:none; background:transparent; font-family:inherit; font-size:10.5px; font-weight:700; color:#7a7068; padding:5px 4px; border-radius:50px; cursor:pointer; white-space:nowrap; transition:all .15s; }
+.reseau-toggle button.active { background:#1F6FB2; color:#fff; box-shadow:0 1px 4px rgba(31,111,178,.3); }
+
+#main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.topbar { background:#fffef9; border-bottom:1px solid #e8e0d5; padding:8px 16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; flex-shrink:0; }
+.search-wrap { position:relative; flex:1; max-width:240px; }
+.search-wrap input { width:100%; padding:6px 12px 6px 32px; border:1.5px solid #e8e0d5; border-radius:50px; font-family:inherit; font-size:12px; background:#faf7f2; outline:none; color:#2c2825; }
+.search-ico { position:absolute; left:11px; top:50%; transform:translateY(-50%); font-size:13px; pointer-events:none; }
+.chip { padding:4px 11px; border-radius:50px; border:1.5px solid #e8e0d5; background:#faf7f2; color:#2c2825; font-size:11.5px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; white-space:nowrap; }
+.chip.active { border-color:transparent; color:#fff; }
+.chip-bool.active{ background:#2c2825; border-color:#2c2825; color:#fff; }
+.filter-select { padding:5px 10px; border-radius:50px; border:1.5px solid #e8e0d5; background:#faf7f2; font-family:inherit; font-size:11.5px; color:#2c2825; outline:none; cursor:pointer; }
+.type-filter { position:relative; }
+.type-filter summary { list-style:none; padding:5px 11px; border-radius:50px; border:1.5px solid #e8e0d5; background:#faf7f2; color:#2c2825; font-family:inherit; font-size:11.5px; font-weight:600; cursor:pointer; white-space:nowrap; }
+.type-filter summary::-webkit-details-marker { display:none; }
+.type-filter[open] summary { border-color:#c1607a; background:#fffef9; }
+.type-filter[open] { z-index:1200; }
+.type-filter-menu { position:absolute; top:calc(100% + 6px); left:0; min-width:200px; max-height:260px; overflow:auto; padding:8px; border:1px solid #e8e0d5; border-radius:12px; background:#fffef9; box-shadow:0 8px 24px rgba(0,0,0,.12); z-index:1200; }
+.type-filter-menu .menu-tools { display:flex; gap:6px; padding:2px 4px 7px; border-bottom:1px solid #eee5da; margin-bottom:5px; }
+.type-filter-menu .menu-tools button { flex:1; font-size:10px; font-weight:700; border:1px solid #e8e0d5; background:#faf7f2; border-radius:6px; padding:3px; cursor:pointer; font-family:inherit; color:#7a7068; }
+.type-filter-menu label { display:flex; align-items:center; gap:7px; padding:5px 8px; border-radius:8px; font-size:12px; color:#2c2825; cursor:pointer; white-space:nowrap; }
+.type-filter-menu label:hover { background:#f5f1eb; }
+.type-filter-menu input { accent-color:#c1607a; }
+.type-filter-menu .swatch { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.btn-reset { padding:5px 12px; border-radius:50px; border:1.5px solid #e8e0d5; background:transparent; font-family:inherit; font-size:11.5px; color:#7a7068; cursor:pointer; margin-left:auto; }
+.count-badge { font-size:12px; color:#7a7068; white-space:nowrap; }
+.count-badge strong { color:#2c2825; }
+.body-wrap { flex:1; display:flex; overflow:hidden; }
+.map-wrap { flex:1; position:relative; }
+.map-el { width:100%; height:100%; }
+.sidebar { width:300px; background:#fffef9; border-left:1px solid #e8e0d5; display:flex; flex-direction:column; overflow:hidden; flex-shrink:0; }
+.sidebar-head { padding:10px 14px; border-bottom:1px solid #e8e0d5; font-size:11px; color:#7a7068; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.sidebar-title { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sidebar-tools { padding:8px 14px; border-bottom:1px solid #e8e0d5; background:#fffef9; flex-shrink:0; }
+.sidebar-search-wrap { position:relative; }
+.sidebar-search-wrap input { width:100%; padding:6px 10px 6px 28px; border:1.5px solid #e8e0d5; border-radius:50px; font-family:inherit; font-size:11px; background:#faf7f2; outline:none; color:#2c2825; }
+.sidebar-search-wrap .search-ico { left:10px; font-size:12px; }
+.export-btn { flex-shrink:0; padding:4px 8px; border-radius:50px; border:1.5px solid #e8e0d5; background:#faf7f2; color:#2c2825; font-family:inherit; font-size:10px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.export-btn:hover { background:#f0ece6; }
+.sidebar-list { flex:1; overflow-y:auto; }
+.sidebar-list::-webkit-scrollbar{width:3px;} .sidebar-list::-webkit-scrollbar-thumb{background:#e8e0d5;border-radius:2px;}
+.card { padding:10px 14px; border-bottom:1px solid #e8e0d5; cursor:pointer; display:flex; gap:10px; align-items:flex-start; transition:background .12s; }
+.card:hover{background:#f5f1eb;} .card.active{background:#f0ece6;}
+.card-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; margin-top:4px; }
+.card-type { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; margin-bottom:2px; }
+.card-name { font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.card-ville { font-size:11px; color:#7a7068; margin-top:1px; }
+.card-tags { display:flex; gap:3px; margin-top:4px; flex-wrap:wrap; }
+.tag { font-size:9px; padding:1px 6px; border-radius:20px; font-weight:700; }
+.empty { padding:40px 20px; text-align:center; color:#7a7068; }
+.empty .emoji { font-size:30px; margin-bottom:10px; }
+.detail-panel { display:none; position:absolute; bottom:16px; left:16px; right:316px; background:#fffef9; border:1px solid #e8e0d5; border-radius:16px; box-shadow:0 8px 32px rgba(0,0,0,.12); z-index:500; max-height:60%; overflow:hidden; flex-direction:column; }
+.detail-scroll { flex:1; min-height:0; overflow-y:auto; }
+.detail-head { padding:14px 16px 10px; border-bottom:1px solid #e8e0d5; }
+.detail-type { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; margin-bottom:3px; }
+.detail-name { font-family:Georgia,serif; font-size:18px; color:#2c2825; margin-bottom:3px; line-height:1.2; }
+.detail-sub { font-size:12px; color:#7a7068; }
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:12px 16px; }
+.detail-field label { display:block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:#7a7068; margin-bottom:2px; }
+.detail-field p { font-size:13px; color:#2c2825; font-weight:500; }
+.detail-field.full { grid-column:1/-1; }
+.detail-pills { display:flex; gap:6px; padding:0 16px 10px; flex-wrap:wrap; }
+.pill { font-size:11px; padding:2px 10px; border-radius:20px; font-weight:600; color:#fff; }
+.detail-comment { padding:0 16px 12px; }
+.detail-comment label { display:block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:#7a7068; margin-bottom:4px; }
+.detail-comment p { font-size:12px; color:#2c2825; line-height:1.5; }
+.detail-actions { display:flex; gap:6px; padding:10px 16px 12px; flex-wrap:wrap; border-top:1px solid #e8e0d5; }
+.detail-docs { padding:2px 16px 12px; }
+.detail-docs label { display:block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:#7a7068; margin-bottom:5px; }
+.doc-list { display:flex; flex-direction:column; gap:5px; }
+.doc-btn { display:flex; align-items:center; gap:7px; padding:8px 11px; border-radius:9px; border:1.5px solid #cfe0d3; background:#eef6f0; font-size:12px; font-weight:600; color:#2c5a3a; text-decoration:none; }
+.doc-btn:hover { background:#dfeee4; }
+.doc-btn.flyer { border-color:#e3d2ec; background:#f4eef9; color:#6a3f8a; }
+.detail-share { display:flex; justify-content:flex-end; padding:0 16px 14px; }
+.share-btn { display:inline-flex; align-items:center; gap:7px; margin-left:auto; padding:8px 14px; border-radius:50px; border:1.5px solid #c1607a; background:#c1607a; color:#fff; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+.share-btn:hover { background:#a84e66; border-color:#a84e66; }
+.action-btn { padding:6px 12px; border-radius:8px; border:1.5px solid #e8e0d5; background:#faf7f2; font-size:11px; font-weight:600; cursor:pointer; text-decoration:none; color:#2c2825; font-family:inherit; }
+.action-btn:hover { background:#e8e0d5; }
+.close-btn { position:absolute; top:12px; right:14px; background:rgba(255,254,249,.85); border-radius:50%; width:26px; height:26px; border:none; font-size:18px; cursor:pointer; color:#7a7068; z-index:5; }
+.section { display:none; flex:1; flex-direction:column; overflow:hidden; }
+.section.active { display:flex; }
+.map-legend { background:#fffef9; border:1px solid #e8e0d5; border-radius:10px; padding:10px 12px; font-size:11px; line-height:1.9; box-shadow:0 2px 8px rgba(0,0,0,.06); max-height:200px; overflow:auto; }
+.legend-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#7a7068; margin-bottom:6px; }
+.legend-row { display:flex; align-items:center; gap:7px; }
+.legend-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
+
+.zone-bar { position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:400; display:flex; gap:0; filter:drop-shadow(0 2px 8px rgba(0,0,0,.12)); }
+.zone-input-wrap { position:relative; }
+.zone-input-wrap input { width:280px; padding:9px 36px 9px 16px; border:2px solid #e8e0d5; border-right:none; border-radius:50px 0 0 50px; font-family:'DM Sans',sans-serif; font-size:13px; background:#fffef9; outline:none; color:#2c2825; }
+.zone-input-wrap input:focus { border-color:#c1607a; }
+.zone-clear { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:14px; cursor:pointer; color:#7a7068; display:none; line-height:1; }
+.zone-btn { padding:9px 16px; background:#c1607a; border:2px solid #c1607a; border-radius:0 50px 50px 0; color:#fff; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; transition:background .15s; }
+.zone-btn:hover { background:#a84e66; border-color:#a84e66; }
+.zone-suggestions { position:absolute; top:calc(100% + 6px); left:0; right:0; background:#fffef9; border:1px solid #e8e0d5; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.1); overflow:hidden; display:none; }
+.zone-suggestion { padding:8px 16px; font-size:13px; cursor:pointer; color:#2c2825; transition:background .1s; }
+.zone-suggestion:hover { background:#f0ece6; }
+.zone-marker-icon { background:#c1607a; border:3px solid #fff; border-radius:50%; width:18px; height:18px; box-shadow:0 2px 8px rgba(0,0,0,.3); animation:pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(193,96,122,.4);} 50%{box-shadow:0 0 0 10px rgba(193,96,122,0);} }
+
+.modal-backdrop { display:none; position:fixed; top:0; right:0; bottom:0; left:0; background:rgba(44,40,37,.35); z-index:10000; align-items:center; justify-content:center; padding:20px; }
+.modal-backdrop.open { display:flex; }
+.modal-box { width:min(640px,96vw); max-height:88vh; background:#fffef9; border:1px solid #e8e0d5; border-radius:18px; box-shadow:0 18px 60px rgba(0,0,0,.22); display:flex; flex-direction:column; overflow:hidden; }
+.modal-head { padding:14px 18px; border-bottom:1px solid #e8e0d5; position:relative; }
+.modal-head h2 { font-family:Georgia,serif; font-size:20px; color:#2c2825; margin-bottom:3px; }
+.modal-head p { font-size:12px; color:#7a7068; }
+.modal-close { position:absolute; top:10px; right:12px; border:none; background:transparent; font-size:22px; color:#7a7068; cursor:pointer; }
+.modal-body { padding:14px 18px; overflow:auto; }
+#export-text { width:100%; min-height:300px; resize:vertical; padding:12px; border:1.5px solid #e8e0d5; border-radius:12px; background:#faf7f2; color:#2c2825; font-family:'DM Sans',sans-serif; font-size:13px; line-height:1.45; }
+.modal-actions { display:flex; justify-content:flex-end; gap:8px; padding:12px 18px 16px; border-top:1px solid #e8e0d5; }
+.modal-btn { padding:7px 13px; border-radius:9px; border:1.5px solid #e8e0d5; background:#faf7f2; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; color:#2c2825; }
+.modal-btn.primary { background:#c1607a; border-color:#c1607a; color:#fff; }
+
+.mobile-fabs { display:none; }
+@media (max-width: 1024px) {
+  html, body { width:100%; height:100vh; height:100dvh; overflow:hidden; }
+  body { display:block; }
+  nav { position:fixed; left:0; right:0; bottom:0; width:auto; height:64px; z-index:12000; flex-direction:row; align-items:stretch; justify-content:flex-start; padding:0; border-right:none; border-top:1px solid #e8e0d5; box-shadow:0 -6px 24px rgba(0,0,0,.08); overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  nav::-webkit-scrollbar { display:none; }
+  .logo, .nav-label, .nav-footer, .nav-btn .nav-sub { display:none; }
+  .reseau-toggle { display:flex; position:fixed; top:58px; left:10px; width:auto; margin:0; padding:3px; z-index:950; background:#fffef9; border:1px solid #e8e0d5; box-shadow:0 3px 12px rgba(0,0,0,.13); }
+  .reseau-toggle button { font-size:10px; padding:5px 9px; }
+  .reseau-toggle .rt-long { display:none; }
+  .nav-btn { flex:0 0 auto; width:62px; flex-direction:column; justify-content:center; align-items:center; gap:2px; padding:6px 2px; border-left:none; border-top:3px solid transparent; }
+  .nav-btn.active { border-left-color:transparent; border-top-color:#c1607a; background:#f0ece6; }
+  .nav-btn .ico { font-size:18px; line-height:1; }
+  .nav-btn .nav-title { font-size:9px; line-height:1.05; text-align:center; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; max-height:2.2em; }
+  #main { height:calc(100vh - 64px); height:calc(100dvh - 64px); padding-bottom:0; }
+  .section { position:relative; height:calc(100vh - 64px); height:calc(100dvh - 64px); overflow:hidden; }
+  .body-wrap { position:absolute; top:0; right:0; bottom:0; left:0; flex:none; height:auto; overflow:hidden; }
+  .map-wrap { position:absolute; top:0; right:0; bottom:0; left:0; }
+  .map-el { position:absolute; top:0; right:0; bottom:0; left:0; height:auto; width:auto; }
+  .zone-bar { top:10px; left:10px; right:10px; transform:none; width:auto; z-index:700; filter:drop-shadow(0 3px 10px rgba(0,0,0,.14)); }
+  .zone-input-wrap { flex:1; min-width:0; }
+  .zone-input-wrap input { width:100%; font-size:12px; padding:9px 32px 9px 13px; }
+  .zone-btn { padding:9px 12px; font-size:12px; }
+  .zone-suggestions { z-index:1200; }
+  .mobile-fabs { display:flex; position:absolute; top:58px; right:10px; gap:7px; z-index:950; }
+  .mobile-fabs button { border:1px solid #e8e0d5; background:#fffef9; color:#2c2825; border-radius:999px; padding:8px 11px; font-family:inherit; font-size:12px; font-weight:700; box-shadow:0 3px 12px rgba(0,0,0,.13); cursor:pointer; }
+  .section.mobile-filters-open .mobile-filter-btn, .section.mobile-list-open .mobile-list-btn { background:#c1607a; color:#fff; border-color:#c1607a; }
+  .topbar { position:absolute; left:10px; right:10px; top:104px; z-index:900; border:1px solid #e8e0d5; border-radius:16px; box-shadow:0 10px 32px rgba(0,0,0,.16); max-height:56vh; max-height:56dvh; overflow-y:auto; padding:10px; gap:7px; transform:translateY(-16px); opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease; flex-wrap:wrap; }
+  .section.mobile-filters-open .topbar { transform:translateY(0); opacity:1; pointer-events:auto; }
+  .search-wrap { flex:1 1 100%; max-width:none; }
+  .btn-reset { margin-left:0; }
+  .count-badge { margin-left:auto; }
+  .type-filter[open] { flex:1 1 100%; }
+  .type-filter-menu { position:static; left:auto; right:auto; top:auto; width:100%; min-width:0; max-height:42vh; max-height:42dvh; box-shadow:none; margin-top:5px; }
+  .sidebar { position:absolute; left:10px; right:10px; bottom:64px; width:auto; height:56vh; height:56dvh; max-height:56vh; max-height:56dvh; z-index:850; border:1px solid #e8e0d5; border-radius:18px; box-shadow:0 8px 32px rgba(0,0,0,.22); transform:translateY(118%); opacity:0; pointer-events:none; transition:transform .26s ease, opacity .2s ease; }
+  .section.mobile-list-open .sidebar { transform:translateY(0); opacity:1; pointer-events:auto; }
+  .sidebar-head { min-height:48px; border-bottom:1px solid #e8e0d5; cursor:pointer; position:relative; }
+  .sidebar-head::before { content:''; position:absolute; left:50%; top:7px; transform:translateX(-50%); width:42px; height:4px; border-radius:999px; background:#e8e0d5; }
+  .sidebar-title { padding-top:5px; }
+  .detail-panel { left:10px; right:10px; bottom:72px; max-height:52vh; max-height:52dvh; border-radius:18px; z-index:820; }
+  .detail-grid { grid-template-columns:1fr; }
+  .map-legend { display:none; }
+  .leaflet-control-zoom { margin-top:112px !important; }
+  .modal-box { width:100%; max-height:88vh; max-height:88dvh; border-radius:16px; }
+}
+@media (max-width: 420px) {
+  .zone-btn { padding-left:10px; padding-right:10px; }
+  .chip, .filter-select, .type-filter summary { font-size:11px; padding:4px 9px; }
+}
+
+#loading { position:fixed; top:0; right:0; bottom:0; left:0; background:#faf7f2; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; gap:14px; transition:opacity .4s; }
+#loading.hidden { opacity:0; pointer-events:none; }
+.spinner { width:36px; height:36px; border:3px solid #e8e0d5; border-top-color:#c1607a; border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-text { font-size:13px; color:#7a7068; text-align:center; padding:0 24px; }
+
+/* SECTORISATION */
+.secto-modes{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1;}
+.secto-field{display:flex;align-items:center;gap:6px;background:#faf7f2;border:1.5px solid #e8e0d5;border-radius:50px;padding:4px 6px 4px 14px;}
+.secto-field label{font-size:11px;font-weight:700;color:#7a7068;white-space:nowrap;}
+.secto-field input{border:none;background:transparent;font-family:inherit;font-size:12.5px;outline:none;color:#2c2825;width:190px;padding:4px 0;}
+.secto-field .go{border:none;background:#c1607a;color:#fff;border-radius:50px;padding:6px 13px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
+.secto-field .go:hover{background:#a84e66;}
+.secto-or{font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;}
+.secto-sugg{position:absolute;top:calc(100% + 6px);left:0;min-width:280px;background:#fffef9;border:1px solid #e8e0d5;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.12);overflow:hidden;display:none;z-index:900;}
+.secto-card{border-bottom:1px solid #e8e0d5;padding:12px 14px;}
+.secto-card h4{font-family:Georgia,serif;font-size:15px;margin-bottom:2px;}
+.secto-code{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.06em;color:#fff;border-radius:20px;padding:2px 9px;margin-bottom:6px;}
+.secto-line{font-size:11.5px;margin:3px 0;line-height:1.45;}
+.secto-line b{font-weight:700;}
+.secto-warn{display:inline-block;font-size:9.5px;font-weight:700;background:#fff3cd;color:#8a6a00;border-radius:20px;padding:2px 8px;margin-left:5px;}
+.secto-loading{font-size:10.5px;color:#7a7068;padding:4px 0;}
+.secto-empty{padding:30px 16px;text-align:center;color:#7a7068;font-size:12px;}
+.secto-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;}
+
+@media (max-width:768px){
+  #sec-secto .topbar{display:block;padding:8px 10px;max-height:none;overflow:visible;}
+  .secto-modes{flex-direction:column;align-items:stretch;gap:7px;}
+  .secto-field{width:100%;border-radius:14px;flex-wrap:wrap;}
+  .secto-field input{flex:1;width:auto;min-width:0;}
+  .secto-or{text-align:center;}
+  .secto-sugg{position:fixed;left:10px;right:10px;top:auto;min-width:0;max-height:40vh;overflow-y:auto;}
+  #sec-secto .btn-reset{width:100%;}
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div style="font-family:Georgia,serif;font-size:24px;font-weight:bold">Mon&nbsp;<span style="color:#c1607a;font-style:italic">Réseau</span></div>
+  <div class="spinner"></div>
+  <div id="loading-text">Chargement des données depuis Google Sheets…</div>
+</div>
+
+<nav id="nav"></nav>
+<div id="main"></div>
+
+<div id="export-modal" class="modal-backdrop" onclick="if(event.target===this)R.closeExport()">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <button class="modal-close" onclick="R.closeExport()" aria-label="Fermer">×</button>
+      <h2 id="export-title">Liste à copier</h2>
+      <p id="export-subtitle"></p>
+    </div>
+    <div class="modal-body"><textarea id="export-text" readonly></textarea></div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="R.closeExport()">Fermer</button>
+      <a class="modal-btn" id="mail-export-btn" style="display:none" target="_blank" rel="noopener" href="#">✉️ Ouvrir dans Mail</a>
+      <button class="modal-btn primary" id="copy-export-btn" onclick="R.copyExport()">Copier</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  CONFIGURATION — coller ici les liens publiés si besoin
+//  (un par onglet ; l'ordre n'a pas d'importance, le type
+//   de chaque feuille est détecté automatiquement)
+// ══════════════════════════════════════════════════════
+const SOURCES = [
+  { url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4eihKm0vSfzOt9N8N0eTFoftpH0-B1EfQdkivVMOofFEeynkWIF6MhylxQOZsQpvbvorbHqEskaPN/pub?gid=340562352&single=true&output=csv",  hint:"psychiatres" },
+  { url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4eihKm0vSfzOt9N8N0eTFoftpH0-B1EfQdkivVMOofFEeynkWIF6MhylxQOZsQpvbvorbHqEskaPN/pub?gid=1218057122&single=true&output=csv", hint:"somatiques" },
+  { url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4eihKm0vSfzOt9N8N0eTFoftpH0-B1EfQdkivVMOofFEeynkWIF6MhylxQOZsQpvbvorbHqEskaPN/pub?gid=690255653&single=true&output=csv",  hint:"psychologues" },
+  { url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4eihKm0vSfzOt9N8N0eTFoftpH0-B1EfQdkivVMOofFEeynkWIF6MhylxQOZsQpvbvorbHqEskaPN/pub?gid=1677451743&single=true&output=csv", hint:"idel" },
+  { url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4eihKm0vSfzOt9N8N0eTFoftpH0-B1EfQdkivVMOofFEeynkWIF6MhylxQOZsQpvbvorbHqEskaPN/pub?gid=1959809995&single=true&output=csv", hint:"educpaires" },
+  { url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4eihKm0vSfzOt9N8N0eTFoftpH0-B1EfQdkivVMOofFEeynkWIF6MhylxQOZsQpvbvorbHqEskaPN/pub?gid=1484793078&single=true&output=csv", hint:"hebergements" },
+  { url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4eihKm0vSfzOt9N8N0eTFoftpH0-B1EfQdkivVMOofFEeynkWIF6MhylxQOZsQpvbvorbHqEskaPN/pub?gid=2066139760&single=true&output=csv", hint:"emplois" },
+  { url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4eihKm0vSfzOt9N8N0eTFoftpH0-B1EfQdkivVMOofFEeynkWIF6MhylxQOZsQpvbvorbHqEskaPN/pub?gid=2098937518&single=true&output=csv", hint:"associatif" },
+  { url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4eihKm0vSfzOt9N8N0eTFoftpH0-B1EfQdkivVMOofFEeynkWIF6MhylxQOZsQpvbvorbHqEskaPN/pub?gid=1863421652&single=true&output=csv", hint:"samsah" },
+  { url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4eihKm0vSfzOt9N8N0eTFoftpH0-B1EfQdkivVMOofFEeynkWIF6MhylxQOZsQpvbvorbHqEskaPN/pub?gid=212001484&single=true&output=csv", hint:"readaptation" },
+  { url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4eihKm0vSfzOt9N8N0eTFoftpH0-B1EfQdkivVMOofFEeynkWIF6MhylxQOZsQpvbvorbHqEskaPN/pub?gid=224627855&single=true&output=csv", hint:"sanitaire" },
+];
+
+// ── Couleurs ──────────────────────────────────────────
+const HC = { FAM:{fill:'#f4a7b9',dark:'#c1607a'}, MAS:{fill:'#a8d5ba',dark:'#5a9972'}, FV:{fill:'#aec6e8',dark:'#4a82b8'}, FH:{fill:'#f7c89b',dark:'#c87e3a'}, EANM:{fill:'#c3b1e1',dark:'#7a5aa8'}, HI:{fill:'#f9e4b7',dark:'#b8962a'} };
+const AC = { 'GEM':{fill:'#fdd9b5',dark:'#e07b39'}, 'Asso locale':{fill:'#b8dfc8',dark:'#3a8a56'}, 'Aspéro Café':{fill:'#f4a7b9',dark:'#c1607a'} };
+const PSYCHIA_C = { 'Psychiatre':{fill:'#b8d8f0',dark:'#2e7fc1'}, 'Pédopsychiatre':{fill:'#d4b8f0',dark:'#7c3fc1'}, 'Addictologue':{fill:'#a8d5c4',dark:'#3a8a72'} };
+const EMP_C = { 'ESAT':{fill:'#a8c8e8',dark:'#3f6ca8'}, 'EA':{fill:'#f7c89b',dark:'#c87e3a'} };
+const SAMSAH_C = { 'SAMSAH':{fill:'#a8d5c4',dark:'#3a8a72'}, 'SAVS':{fill:'#bfe0a8',dark:'#5a8a3a'}, 'SAMSAAD':{fill:'#f7c89b',dark:'#c87e3a'}, 'SESVAD':{fill:'#c3b1e1',dark:'#7a5aa8'} };
+const READA_C = { 'ESRP':{fill:'#a8c8e8',dark:'#3f6ca8'}, 'ESPO':{fill:'#b8d8f0',dark:'#2e7fc1'}, 'DEA':{fill:'#f4c4a8',dark:'#c8643a'}, 'Job coach libéral':{fill:'#d4b8f0',dark:'#7c3fc1'}, 'Service insertion':{fill:'#a8d5ba',dark:'#5a9972'} };
+const PSYCHO_C = { fill:'#d4b8f0', dark:'#7c3fc1' };
+const IDEL_C   = { fill:'#b8e6c8', dark:'#2e8a56' };
+const EDU_C    = { 'Pair Aidance':{fill:'#d8b8f0',dark:'#5a2e8a'} };
+const EDU_DEFAULT = { fill:'#f0d8b8', dark:'#8a5a2e' };
+const NEURO_C  = { fill:'#b8d8f0', dark:'#2e7fc1' };
+const PALETTE = [ {fill:'#f4a7b9',dark:'#c1607a'},{fill:'#a8d5ba',dark:'#5a9972'},{fill:'#aec6e8',dark:'#4a82b8'},{fill:'#f7c89b',dark:'#c87e3a'},{fill:'#c3b1e1',dark:'#7a5aa8'},{fill:'#f9e4b7',dark:'#b8962a'},{fill:'#a8d5c4',dark:'#3a8a72'} ];
+const TSA_PILL='#1F6FB2';
+
+// ── Helpers ───────────────────────────────────────────
+function yes(v){ v=(v||'').toString().trim().toLowerCase(); return v!=='' && v!=='non' && v!=='nc' && v!=='0'; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function jsstr(s){ return String(s==null?'':s).replace(/\\/g,'\\\').replace(/'/g,"\'"); }
+function clean(v){ v=(v==null?'':String(v)).trim(); return /^-?\d+\.0$/.test(v)? v.slice(0,-2): v; }
+function coord(v){
+  if(v==null) return null;
+  let s=String(v).trim(); if(s==='') return null;
+  // gère la virgule décimale française : "43,296" -> 43.296 ; "1 234,5" -> 1234.5
+  s=s.replace(/\s/g,'');
+  if(s.includes(',') && s.includes('.')) s=s.replace(/,/g,'');   // format US avec séparateur de milliers
+  else s=s.replace(',', '.');                                     // virgule décimale -> point
+  const f=parseFloat(s);
+  return isNaN(f)?null:f;
+}
+function validLatLng(lat,lng){ return lat!=null && lng!=null && lat>=40 && lat<=52 && lng>=-7 && lng<=12; }
+
+// ── Parser CSV robuste (gère guillemets, virgules, retours ligne) ──
+function parseCSV(text){
+  text = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const rows=[]; let row=[], cur='', q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
+      else cur+=ch;
+    } else {
+      if(ch==='"') q=true;
+      else if(ch===','){ row.push(cur); cur=''; }
+      else if(ch==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; }
+      else cur+=ch;
+    }
+  }
+  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+  if(!rows.length) return [];
+  const headers = rows[0].map(h=>h.trim());
+  return rows.slice(1).map(r=>{
+    const o={}; headers.forEach((h,i)=>o[h]=(r[i]==null?'':r[i]).trim());
+    return o;
+  }).filter(o=>Object.values(o).some(v=>v));
+}
+function g(e,col){ return (e.raw && e.raw[col]) ? e.raw[col] : ''; }
+function Y(e,col){ return yes(g(e,col)); }
+function firstCol(o,names){ for(const n of names){ if(o[n]!=null && o[n]!=='') return o[n]; } return ''; }
+function phLabel(v){ v=(v||'').toString().trim(); if(!v) return ''; return v.toLowerCase()==='oui' ? 'PH' : v; }
+function driveDownload(url){
+  url=(url||'').trim(); if(!url) return '';
+  const m=url.match(/\/file\/d\/([A-Za-z0-9_-]{10,})/) || url.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+  return m ? 'https://drive.google.com/uc?export=download&id='+m[1] : url;
+}
+function parseDocs(cell){
+  if(!cell) return [];
+  return String(cell).split(/\r?\n|;/).map(s=>s.trim()).filter(Boolean).map((line,i)=>{
+    const mm=line.match(/https?:\/\/\S+/); if(!mm) return null;
+    const label=line.slice(0,mm.index).replace(/[|:–—\-]\s*$/,'').trim();
+    return { label: label || ('Dossier '+(i+1)), url: mm[0] };
+  }).filter(Boolean);
+}
+
+// ══════════════════════════════════════════════════════
+//  CONFIGURATION DES SECTIONS
+// ══════════════════════════════════════════════════════
+const PATHO = [['TSA','TSA'],['Tb humeur','Tb humeur'],['Tb dépressif','Tb dépressif'],['Tb anxieux','Tb anxieux'],['TDAH','TDAH'],['HPI','HPI'],['DI','DI'],['TCA','TCA'],['Habiletés sociales','Hab. sociales'],['Sexologie','Sexologie']];
+const APPRO = [['TCC','TCC'],['EMDR','EMDR'],['Schémas','Schémas'],['ACT','ACT'],['Pleine conscience','Pleine conscience'],['Systémique','Systémique'],['Remédiation cognitive','Remédiation cog.'],['Bilan / Diagnostic','Bilan / Diag.']];
+const ACTIV = ['Espaces verts','Conditionnement','Entretien des locaux / nettoyage','Repassage','Couture','Blanchisserie','Artisanat','Cuisine/restauration','Service en salle','Industrie','Lavage auto','Prestation en entreprise','Pépinière et horticulture','Batiment (2nd oeuvre)','Construction et bâtiment','Magasinage','Logistique','Transport de personnes','Maraichage','Informatique/bureautique','Pose d’antivol','Fromagerie','Boulangerie','Menuiserie','Electricité / Mecanique','Restauration, hébergement et services touristiques','Peinture'];
+
+function baseFields(r){
+  return {
+    raw:r,
+    type: clean(firstCol(r,['TYPE','Type'])),
+    nom: clean(firstCol(r,['NOM','Nom'])),
+    adresse: clean(firstCol(r,['ADRESSE COMPLETE','Adresse'])),
+    rue: clean(r['Adresse']),
+    cp: clean(firstCol(r,['Code postal','CP'])),
+    ville: clean(r['Ville']),
+    dpt: clean(r['Dpt']),
+    tel: clean(r['Telephone']),
+    mail: clean(r['Mail']),
+    site: clean(r['Site']),
+    visio: clean(firstCol(r,['Visio ?','Visio?','Visio'])),
+    commentaire: clean(r['Commentaire']),
+    reseauTSA: yes(firstCol(r,['Réseau TSA','Reseau TSA'])),
+    lat: coord(r['LAT']), lng: coord(r['LNG']),
+  };
+}
+
+const SECTIONS = [
+  // ───────── PSYCHIATRES ─────────
+  { key:'psychiatres', label:'Psychiatres', icon:'🧠', noun:['psychiatre','psychiatres'],
+    view:{center:[43.7,5.8],zoom:7}, tsa:true,
+    color:t=>PSYCHIA_C[t]||PALETTE[0],
+    parse:r=>{ const e=baseFields(r); e.orientation=clean(r['Orientation']); e.cmphp=clean(firstCol(r,['CMP/HP','CMP / HP','CMP-HP'])); return e; },
+    exportFilter:e=>(e.cmphp||'').trim().toLowerCase()!=='oui',
+    typeMenu:{label:'Spécialité'},
+    selects:[ {id:'cmphp', label:'Exercice', options:[['','Lib. + public'],['lib','Libéral'],['pub','CMP / HP']],
+               test:(e,v)=> v===''?true : v==='pub'? yes(e.cmphp) : !yes(e.cmphp) } ],
+    menus:[ {id:'pathologies', label:'Pathologies', cols:[['TSA','TSA'],['TDAH','TDAH'],['DI','DI'],['TCA','TCA'],['Sexologie','Sexologie'],['Borderline','Borderline']]} ],
+    chips:[ {id:'DPL',label:'🏥 DPL'},{id:'M37',label:'📋 M37'},{id:'__visio',label:'💻 Visio'} ],
+    cardSub:e=>`📍 ${esc(e.ville)}${e.dpt?' · dép. '+esc(e.dpt):''}`,
+    typeLabel:e=>esc(e.type)+(e.orientation?' · '+esc(e.orientation):'')+(yes(e.cmphp)?' · '+esc(phLabel(e.cmphp)):''),
+    tags:e=>{ const t=[]; if(Y(e,'TSA'))t.push(['#d0e8f7','#2e7fc1','TSA']); if(Y(e,'TDAH'))t.push(['#d0e8f7','#2e7fc1','TDAH']); if(Y(e,'Borderline'))t.push(['#efe1ef','#8a5a8a','Borderline']); if(Y(e,'DPL'))t.push(['#d8eac8','#5a7a3a','DPL']); if(Y(e,'M37'))t.push(['#d8eac8','#5a7a3a','M37']); if(yes(e.cmphp))t.push(['#dce9f5','#1F6FB2',esc(phLabel(e.cmphp))]); return t; },
+    fields:e=>[ {l:'Exercice',v:yes(e.cmphp)?esc(phLabel(e.cmphp)):'Libéral'}, {l:'Orientation',v:e.orientation||'—'}, {l:'Visio',v:e.visio||'NC'}, {l:'Département',v:e.dpt||'—'}, e.rue?{l:'Adresse',v:esc(e.rue),full:true}:null ],
+    pills:e=>{ const p=[]; if(Y(e,'TSA'))p.push(['#2e7fc1','🧩 TSA']); if(Y(e,'TDAH'))p.push(['#e07b39','⚡ TDAH']); if(Y(e,'DI'))p.push(['#5a9972','🧩 DI']); if(Y(e,'TCA'))p.push(['#c1607a','🍽️ TCA']); if(Y(e,'Sexologie'))p.push(['#c1607a','❤️ Sexologie']); if(Y(e,'Borderline'))p.push(['#8a5a8a','🌀 Borderline']); if(Y(e,'DPL'))p.push(['#2e7fc1','🏥 DPL']); if(Y(e,'M37'))p.push(['#5a7a3a','📋 M37']); if(yes(e.visio))p.push(['#3a7a3a','💻 Visio']); return p; },
+  },
+  // ───────── MÉDECINS SOMATIQUES ─────────
+  { key:'somatiques', label:'Méd. somatiques', icon:'🩺', noun:['médecin','médecins'],
+    view:{center:[43.7,5.8],zoom:7}, tsa:true,
+    color:(t,types)=>{ const i=Math.max(0,types.indexOf(t)); return PALETTE[i%PALETTE.length]; },
+    parse:r=>{ const e=baseFields(r); e.specialite=clean(firstCol(r,['Spécialité / surspécialité','Spécialité'])); e.secteur=clean(r['Secteur']); return e; },
+    typeMenu:{label:'Spécialité'},
+    selects:[ {id:'secteur', label:'Secteur', options:[['','Tous secteurs'],['1','Secteur 1'],['2','Secteur 2'],['nc','Non conv.']],
+               test:(e,v)=> v===''?true : v==='nc'? /non/i.test(e.secteur) : (e.secteur||'').replace(/\D/g,'')===v } ],
+    chips:[ {id:'TSA',label:'🧩 TSA'},{id:'TDAH',label:'⚡ TDAH'},{id:'__visio',label:'💻 Visio'} ],
+    cardSub:e=>`📍 ${esc(e.ville)}${e.dpt?' · dép. '+esc(e.dpt):''}`,
+    typeLabel:e=>esc(e.type)+(e.specialite?' · '+esc(e.specialite):''),
+    tags:e=>{ const t=[]; if(Y(e,'TSA'))t.push(['#d0e8f7','#2e7fc1','TSA']); if(Y(e,'TDAH'))t.push(['#d0e8f7','#2e7fc1','TDAH']); if(e.secteur)t.push(['#eee5da','#7a7068','Sect. '+esc(e.secteur)]); return t; },
+    fields:e=>[ e.specialite?{l:'Spécialité',v:esc(e.specialite),full:true}:null, {l:'Secteur',v:e.secteur||'—'}, {l:'Visio',v:e.visio||'NC'}, {l:'Département',v:e.dpt||'—'}, e.rue?{l:'Adresse',v:esc(e.rue),full:true}:null ],
+    pills:e=>{ const p=[]; if(Y(e,'TSA'))p.push(['#2e7fc1','🧩 TSA']); if(Y(e,'TDAH'))p.push(['#e07b39','⚡ TDAH']); if(yes(e.visio))p.push(['#3a7a3a','💻 Visio']); return p; },
+  },
+  // ───────── PSYCHOLOGUES ─────────
+  { key:'psychologues', label:'Psychologues', icon:'💬', noun:['psychologue','psychologues'],
+    view:{center:[43.7,5.8],zoom:7}, tsa:true,
+    color:t=> /neuro/i.test(t)? NEURO_C : PSYCHO_C,
+    parse:r=>{ const e=baseFields(r); e.orientation=clean(r['Orientation']); e.tarif=clean(r['Tarif']); e.groupes=clean(firstCol(r,['Groupes ?','Groupes'])); e.autres=clean(r['Autres approches']); return e; },
+    typeMenu:{label:'Type'},
+    menus:[ {id:'approches', label:'Approches', cols:APPRO}, {id:'pathologies', label:'Pathologies', cols:PATHO} ],
+    chips:[ {id:'__groupes',label:'👥 Groupes'},{id:'__visio',label:'💻 Visio'} ],
+    cardSub:e=>`📍 ${esc(e.ville)}${e.dpt?' · dép. '+esc(e.dpt):''}`,
+    typeLabel:e=>esc(e.type)+(e.orientation?' · '+esc(e.orientation):''),
+    tags:e=>{ const t=[]; APPRO.forEach(([c,l])=>{ if(Y(e,c)) t.push(['#ede4f7','#7c3fc1',l]); }); if(Y(e,'TSA'))t.push(['#d0e8f7','#2e7fc1','TSA']); if(Y(e,'TDAH'))t.push(['#d0e8f7','#2e7fc1','TDAH']); if(Y(e,'HPI'))t.push(['#fff3b0','#8a6a00','HPI']); return t.slice(0,6); },
+    fields:e=>[ e.tarif?{l:'Tarifs',v:esc(e.tarif),full:true}:null, {l:'Groupes',v:e.groupes||'—'}, {l:'Visio',v:e.visio||'NC'}, {l:'Orientation',v:e.orientation||'—'}, {l:'Département',v:e.dpt||'—'}, e.autres?{l:'Autres approches',v:esc(e.autres),full:true}:null, e.rue?{l:'Adresse',v:esc(e.rue),full:true}:null ],
+    pills:e=>{ const p=[]; APPRO.forEach(([c,l])=>{ if(Y(e,c)) p.push(['#7c3fc1',l]); }); PATHO.forEach(([c,l])=>{ if(Y(e,c)) p.push(['#5a9972',l]); }); if(yes(e.visio))p.push(['#3a7a3a','💻 Visio']); return p; },
+  },
+  // ───────── IDEL ─────────
+  { key:'idel', label:'IDEL', icon:'💉', noun:['infirmier','infirmiers'],
+    view:{center:[43.5,5.4],zoom:8}, tsa:false,
+    color:()=>IDEL_C,
+    parse:r=>{ const e=baseFields(r); e.cabinet=clean(r['Cabinet']); e.secteur=clean(r['Secteur']); return e; },
+    selects:[ {id:'secteur', label:'Secteur', options:[['','Tous secteurs']], dyn:'secteur',
+               test:(e,v)=> v===''?true : (e.secteur||'')===v } ],
+    chips:[],
+    cardSub:e=>`📍 ${esc(e.ville)}${e.dpt?' · dép. '+esc(e.dpt):''}`,
+    cardExtra:e=> e.cabinet?`<div style="font-size:10px;color:#7a7068;margin-top:1px">🏥 ${esc(e.cabinet)}</div>`:'',
+    typeLabel:e=> e.cabinet?esc(e.cabinet):'IDEL',
+    tags:e=>{ const t=[]; if(e.secteur)t.push(['#dff0e5','#2e8a56',esc(e.secteur)]); return t; },
+    detailSub:e=> `📍 ${esc(e.ville)} (${esc(e.cp)})${e.dpt?' — Dép. '+esc(e.dpt):''}`,
+    fields:e=>[ e.cabinet?{l:'Cabinet',v:esc(e.cabinet),full:true}:null, e.secteur?{l:'Secteur couvert',v:esc(e.secteur),full:true}:null, {l:'Département',v:e.dpt||'—'}, e.rue?{l:'Adresse',v:esc(e.rue),full:true}:null ],
+    pills:e=>[],
+  },
+  // ───────── ÉDUC / PAIRES ─────────
+  { key:'educpaires', label:'Éduc / Paires', icon:'🎓', noun:['intervenant','intervenants'],
+    view:{center:[43.5,5.4],zoom:8}, tsa:true,
+    color:t=>EDU_C[t]||EDU_DEFAULT,
+    parse:r=>{ const e=baseFields(r); e.tarif=clean(r['Tarif']); e.groupes=clean(firstCol(r,['Groupes ?','Groupes'])); return e; },
+    typeMenu:{label:'Type'},
+    menus:[ {id:'pathologies', label:'Pathologies', cols:[['TSA','TSA'],['Tb humeur','Tb humeur'],['Tb anxieux','Tb anxieux'],['TDAH','TDAH'],['HPI','HPI'],['DI','DI'],['TCA','TCA'],['Habiletés sociales','Hab. sociales']]} ],
+    chips:[ {id:'__groupes',label:'👥 Groupes'},{id:'__visio',label:'💻 Visio'} ],
+    flyer:e=>{ const a=parseDocs(g(e,'Flyer')); return a.length?a[0].url:''; },
+    share:true,
+    cardSub:e=>`📍 ${esc(e.ville)}${e.dpt?' · dép. '+esc(e.dpt):''}`,
+    typeLabel:e=>esc(e.type||'Éducateur'),
+    tags:e=>{ const t=[]; if(Y(e,'TSA'))t.push(['#d0e8f7','#2e7fc1','TSA']); if(Y(e,'TDAH'))t.push(['#d0e8f7','#2e7fc1','TDAH']); if(Y(e,'HPI'))t.push(['#fff3b0','#8a6a00','HPI']); if(Y(e,'Habiletés sociales'))t.push(['#e8f4e8','#3a7a3a','Hab. soc.']); if(yes(e.groupes))t.push(['#f0e8d8','#8a5a2e','Groupes']); return t.slice(0,5); },
+    fields:e=>[ e.tarif?{l:'Tarifs',v:esc(e.tarif),full:true}:null, {l:'Groupes',v:e.groupes||'—'}, {l:'Visio',v:e.visio||'NC'}, {l:'Département',v:e.dpt||'—'}, e.rue?{l:'Adresse',v:esc(e.rue),full:true}:null ],
+    pills:e=>{ const p=[]; [['TSA','🧩 TSA'],['Tb humeur','Tb humeur'],['Tb anxieux','Tb anxieux'],['TDAH','⚡ TDAH'],['HPI','✨ HPI'],['DI','🧩 DI'],['TCA','🍽️ TCA'],['Habiletés sociales','🤝 Hab. sociales']].forEach(([c,l])=>{ if(Y(e,c)) p.push(['#8a5a2e',l]); }); if(yes(e.groupes))p.push(['#5a2e8a','👥 Groupes']); if(yes(e.visio))p.push(['#3a7a3a','💻 Visio']); return p; },
+  },
+  // ───────── ASSOCIATIF ─────────
+  { key:'associatif', label:'Associatif', icon:'🤝', noun:['structure','structures'],
+    view:{center:[43.6,5.3],zoom:8}, tsa:true,
+    color:(t)=> AC[t] || PALETTE[2],
+    exportLine:e=>`${e.type?e.type+' — ':''}${e.nom||'Sans nom'} — ${e.adresse||e.ville||'Adresse non renseignée'}${e.site?' — '+e.site:''}`,
+    parse:r=>{ const e=baseFields(r); e.domaine=clean(firstCol(r,['Domaine / Pathologie','Domaine'])); e.association=clean(r['Association']); e.annee=clean(firstCol(r,['Année de création','Année de creation'])); return e; },
+    typeMenu:{label:'Type'},
+    menus:[ {id:'domaine', label:'Domaine', dyn:e=>e.domaine, match:(e,set)=> set.size===0 || set.has(e.domaine)} ],
+    chips:[],
+    cardSub:e=>`📍 ${esc(e.ville)}${e.annee?' · '+esc(e.annee):''}`,
+    cardExtra:e=> e.association?`<div style="font-size:10px;color:#7a7068;margin-top:1px">🤝 ${esc(e.association)}</div>`:'',
+    typeLabel:e=>esc(e.type)+(e.domaine?' · '+esc(e.domaine):''),
+    tags:e=>{ const t=[]; if(e.domaine)t.push(['#dce9f5','#1F6FB2',esc(e.domaine)]); return t; },
+    detailSub:e=> (e.association?'🤝 '+esc(e.association)+' — ':'')+`📍 ${esc(e.ville)} (${esc(e.cp)})`,
+    fields:e=>[ e.domaine?{l:'Domaine',v:esc(e.domaine)}:null, e.annee?{l:'Création',v:esc(e.annee)}:null, {l:'Département',v:e.dpt||'—'}, e.rue?{l:'Adresse',v:esc(e.rue),full:true}:null ],
+    pills:e=>[],
+  },
+  // ───────── HÉBERGEMENTS ─────────
+  { key:'hebergements', label:'Hébergements', sub:'FAM, MAS, FV…', icon:'🏠', noun:['établissement','établissements'],
+    view:{center:[43.45,5.2],zoom:9}, tsa:false,
+    color:t=>HC[t]||PALETTE[0],
+    exportLine:e=>`${e.type?e.type+' — ':''}${e.nom||'Sans nom'} — ${e.adresse||e.ville||'Adresse non renseignée'}`,
+    parse:r=>{ const e=baseFields(r); e.asso=clean(r['ASSO GEST']); e.population=clean(r['Population']); e.age=clean(firstCol(r,['Critère age','Critère âge'])); e.placeP=clean(r['Place P']); e.placeAT=clean(r['Place AT']); e.placeAJ=clean(r['Place AJ']); e.snoe=clean(r['Snoezelen']); e.annee=clean(r['Année ouverture']); e.spectsa=clean(r['Spécifique TSA/TED']); return e; },
+    typeMenu:{label:'Type'},
+    menus:[ {id:'asso', label:'Gestionnaire', dyn:e=>e.asso, match:(e,set)=> set.size===0 || set.has(e.asso)} ],
+    chips:[ {id:'__htsa',label:'🧩 TSA/TED', test:e=>yes(e.spectsa)},{id:'__snoe',label:'💆 Snoezelen', test:e=>(e.snoe||'').toLowerCase()==='oui'} ],
+    cardSub:e=>`📍 ${esc(e.ville)}`,
+    cardExtra:e=> e.asso?`<div style="font-size:10px;color:#7a7068;margin-top:1px">🤝 ${esc(e.asso)}</div>`:'',
+    typeLabel:e=>esc(e.type),
+    tags:e=>{ const t=[]; if(yes(e.spectsa))t.push(['#fce4ec','#c1607a','TSA/TED']); if((e.snoe||'').toLowerCase()==='oui')t.push(['#ede7f6','#7a5aa8','Snoezelen']); return t; },
+    detailSub:e=> esc(e.asso||''),
+    fields:e=>[ {l:'Public',v:esc(e.population||'—')}, {l:'Âge',v:esc(e.age||'—')}, {l:'Ouverture',v:esc(e.annee||'—')}, {l:'Places perm.',v:esc(e.placeP||'—')}, {l:'Places temp.',v:esc(e.placeAT||'—')}, {l:'Accueil jour',v:esc(e.placeAJ||'—')}, e.rue?{l:'Adresse',v:esc(e.rue),full:true}:null ],
+    pills:e=>{ const p=[]; if(yes(e.spectsa))p.push(['#c1607a','🧩 TSA/TED']); if((e.snoe||'').toLowerCase()==='oui')p.push(['#7a5aa8','💆 Snoezelen']); return p; },
+  },
+  // ───────── EMPLOIS (ESAT / EA) ─────────
+  { key:'emplois', label:'Emplois', sub:'ESAT, EA', icon:'💼', noun:['établissement','établissements'],
+    view:{center:[43.5,5.3],zoom:8}, tsa:false,
+    color:t=>EMP_C[t]||PALETTE[1],
+    parse:r=>{ const e=baseFields(r); e.asso=clean(r['ASSO GEST']); e.population=clean(r['Population']); e.capacite=clean(r['Capacité']); e.age=clean(firstCol(r,['Critère age','Critère âge'])); e.annee=clean(r['Ouverture']); e.activites=clean(r['Activités']); e.tsated=clean(r['TSA/TED']); return e; },
+    typeMenu:{label:'Type'},
+    menus:[ {id:'asso', label:'Gestionnaire', dyn:e=>e.asso, match:(e,set)=> set.size===0 || set.has(e.asso)}, {id:'activites', label:'Activités', cols:ACTIV.map(a=>[a,a]) } ],
+    chips:[],
+    cardSub:e=>`📍 ${esc(e.ville)}${e.capacite?' · '+esc(e.capacite)+' pl.':''}`,
+    cardExtra:e=> e.asso?`<div style="font-size:10px;color:#7a7068;margin-top:1px">🤝 ${esc(e.asso)}</div>`:'',
+    typeLabel:e=>esc(e.type),
+    tags:e=>{ const t=[]; let n=0; ACTIV.forEach(a=>{ if(Y(e,a)&&n<4){t.push(['#e6eef7','#3f6ca8',a.split(/[\/ ]/)[0]]); n++;} }); return t; },
+    detailSub:e=> esc(e.asso||''),
+    fields:e=>[ {l:'Public',v:esc(e.population||'—')}, {l:'Capacité',v:esc(e.capacite||'—')}, {l:'Âge',v:esc(e.age||'—')}, {l:'Ouverture',v:esc(e.annee||'—')}, e.activites?{l:'Activités',v:esc(e.activites),full:true}:null, e.rue?{l:'Adresse',v:esc(e.rue),full:true}:null ],
+    pills:e=>{ const p=[]; ACTIV.forEach(a=>{ if(Y(e,a)) p.push(['#3f6ca8',a]); }); return p.slice(0,12); },
+  },
+  // ───────── SAMSAH / SAVS ─────────
+  { key:'samsah', label:'SAMSAH / SAVS', icon:'🤲', noun:['service','services'],
+    view:{center:[43.5,5.4],zoom:9}, tsa:true,
+    color:t=>SAMSAH_C[t]||PALETTE[6],
+    parse:r=>{ const e=baseFields(r); e.asso=clean(r['ASSO GEST']); e.population=clean(r['Population']); e.capacite=clean(r['Capacité']); e.age=clean(firstCol(r,['Critère âge','Critère age'])); e.modalite=clean(r['Modalité']); return e; },
+    typeMenu:{label:'Type'},
+    menus:[ {id:'asso', label:'Gestionnaire', dyn:e=>e.asso, match:(e,set)=> set.size===0 || set.has(e.asso)} ],
+    chips:[ {id:'__stsa',label:'🧩 TSA/TED', test:e=>Y(e,'Spécifique TSA/TED')} ],
+    cardSub:e=>`📍 ${esc(e.ville)}${e.dpt?' · dép. '+esc(e.dpt):''}`,
+    cardExtra:e=> e.asso?`<div style="font-size:10px;color:#7a7068;margin-top:1px">🤝 ${esc(e.asso)}</div>`:'',
+    typeLabel:e=>esc(e.type),
+    tags:e=>{ const t=[]; if(Y(e,'Spécifique TSA/TED'))t.push(['#dce9f5','#1F6FB2','TSA/TED']); if(e.modalite)t.push(['#eee5da','#7a7068',esc(e.modalite)]); return t; },
+    detailSub:e=> esc(e.asso||''),
+    fields:e=>[ {l:'Public',v:esc(e.population||'—')}, {l:'Capacité',v:esc(e.capacite||'—')}, {l:'Âge',v:esc(e.age||'—')}, {l:'Modalité',v:esc(e.modalite||'—')}, e.asso?{l:'Gestionnaire',v:esc(e.asso)}:null, {l:'Département',v:e.dpt||'—'}, e.rue?{l:'Adresse',v:esc(e.rue),full:true}:null ],
+    pills:e=>{ const p=[]; if(Y(e,'Spécifique TSA/TED'))p.push(['#1F6FB2','🧩 TSA/TED']); return p; },
+  },
+  // ───────── RÉADAPTATION / EMPLOI ─────────
+  { key:'readaptation', label:'Réadaptation / Emploi', icon:'🧰', noun:['dispositif','dispositifs'],
+    view:{center:[43.5,5.6],zoom:8}, tsa:true,
+    color:t=>READA_C[t]||PALETTE[3],
+    parse:r=>{ const e=baseFields(r); e.organisme=clean(r['Organisme gestionnaire']); e.public=clean(r['Public']); e.prestations=clean(r['Prestations']); e.modalite=clean(r['Modalité']); e.rqth=clean(r['RQTH requise']); return e; },
+    typeMenu:{label:'Type'},
+    menus:[ {id:'org', label:'Organisme', dyn:e=>e.organisme, match:(e,set)=> set.size===0 || set.has(e.organisme)} ],
+    chips:[ {id:'__stsa',label:'🧩 TSA/TED', test:e=>Y(e,'Spécifique TSA/TED')},{id:'__rqth',label:'📋 RQTH requise', test:e=>yes(e.rqth)} ],
+    cardSub:e=>`📍 ${esc(e.ville)}${e.dpt?' · dép. '+esc(e.dpt):''}`,
+    cardExtra:e=> e.organisme?`<div style="font-size:10px;color:#7a7068;margin-top:1px">🏢 ${esc(e.organisme)}</div>`:'',
+    typeLabel:e=>esc(e.type),
+    tags:e=>{ const t=[]; if(e.prestations)t.push(['#ede4f7','#7c3fc1',esc(e.prestations)]); if(yes(e.rqth))t.push(['#d8eac8','#5a7a3a','RQTH']); return t; },
+    detailSub:e=> esc(e.organisme||''),
+    fields:e=>[ {l:'Public',v:esc(e.public||'—')}, e.prestations?{l:'Prestations',v:esc(e.prestations),full:true}:null, {l:'Modalité',v:esc(e.modalite||'—')}, {l:'RQTH requise',v:esc(e.rqth||'—')}, e.organisme?{l:'Organisme',v:esc(e.organisme)}:null, {l:'Département',v:e.dpt||'—'}, e.rue?{l:'Adresse',v:esc(e.rue),full:true}:null ],
+    pills:e=>{ const p=[]; if(Y(e,'Spécifique TSA/TED'))p.push(['#1F6FB2','🧩 TSA/TED']); if(yes(e.rqth))p.push(['#5a7a3a','📋 RQTH']); return p; },
+  },
+  // ───────── SANITAIRE ─────────
+  { key:'sanitaire', label:'Sanitaire', icon:'🏥', noun:['structure','structures'],
+    view:{center:[43.5,5.4],zoom:8}, tsa:true,
+    color:(t,types)=>PALETTE[Math.max(0,types.indexOf(t))%PALETTE.length],
+    parse:r=>{ const e=baseFields(r); e.spec=clean(firstCol(r,['Spécialité / Intitulé','Spécialité'])); e.ratt=clean(firstCol(r,['Rattachement (CH / étab.)','Rattachement'])); e.population=clean(r['Population']); e.mobile=clean(firstCol(r,['Mobile ?','Mobile'])); e.territoire=clean(r['Territoire couvert']); e.modacces=clean(firstCol(r,['Modalité d’accès',"Modalité d'accès"])); return e; },
+    typeMenu:{label:'Type'},
+    menus:[ {id:'spec', label:'Spécialité', dyn:e=>e.spec, match:(e,set)=> set.size===0 || set.has(e.spec)} ],
+    docs:e=> parseDocs(firstCol(e.raw,['Dossiers de demande','Dossier de demande','Dossiers'])),
+    flyer:e=>{ const a=parseDocs(g(e,'Flyer')); return a.length?a[0].url:''; },
+    share:true,
+    chips:[ {id:'__mobile',label:'🚐 Mobile', test:e=>yes(e.mobile)},{id:'__stsa',label:'🧩 TSA/TED', test:e=>Y(e,'Spécifique TSA/TED')} ],
+    cardSub:e=>`📍 ${esc(e.ville||e.territoire||'')}${e.dpt?' · dép. '+esc(e.dpt):''}`,
+    cardExtra:e=> e.ratt?`<div style="font-size:10px;color:#7a7068;margin-top:1px">🏥 ${esc(e.ratt)}</div>`:'',
+    typeLabel:e=>esc(e.type)+(e.spec?' · '+esc(e.spec):''),
+    tags:e=>{ const t=[]; if(yes(e.mobile))t.push(['#e6eef7','#3f6ca8','Mobile']); if(Y(e,'Spécifique TSA/TED'))t.push(['#dce9f5','#1F6FB2','TSA/TED']); return t; },
+    detailSub:e=> esc(e.ratt||e.territoire||''),
+    fields:e=>[ e.spec?{l:'Spécialité',v:esc(e.spec),full:true}:null, e.ratt?{l:'Rattachement',v:esc(e.ratt),full:true}:null, {l:'Public',v:esc(e.population||'—')}, {l:'Mobile',v:esc(e.mobile||'—')}, e.territoire?{l:'Territoire',v:esc(e.territoire),full:true}:null, e.modacces?{l:'Accès',v:esc(e.modacces)}:null, {l:'Département',v:e.dpt||'—'}, e.rue?{l:'Adresse',v:esc(e.rue),full:true}:null ],
+    pills:e=>{ const p=[]; if(yes(e.mobile))p.push(['#3f6ca8','🚐 Mobile']); if(Y(e,'Spécifique TSA/TED'))p.push(['#1F6FB2','🧩 TSA/TED']); return p; },
+  },
+];
+const SEC = {}; SECTIONS.forEach(s=>SEC[s.key]=s);
+const NAV_GROUPS = [
+  { label:'Soin', keys:['psychiatres','somatiques','psychologues','idel','educpaires','sanitaire'] },
+  { label:'Médico-social', keys:['samsah','associatif','hebergements'] },
+  { label:'Emploi & insertion', keys:['emplois','readaptation'] },
+];
+
+// ══════════════════════════════════════════════════════
+//  ÉTAT
+// ══════════════════════════════════════════════════════
+let RESEAU_MODE = 'tsa';   // 'tsa' | 'all'
+const ST = {};             // état par section
+SECTIONS.forEach(s=>{ ST[s.key]={ data:[], types:[], markers:{}, map:null, inited:false, sel:null, typeSet:new Set(), chips:{}, menus:{}, selects:{}, zoneMarker:null, sectorLayer:null }; });
+
+// ══════════════════════════════════════════════════════
+//  CONSTRUCTION DU DOM
+// ══════════════════════════════════════════════════════
+function buildNav(){
+  let h = `<div class="logo">Mon&nbsp;<span>Réseau</span></div>
+   <div class="reseau-toggle" id="reseau-toggle">
+     <button data-mode="tsa" class="active" onclick="R.setReseau('tsa')">🧩 <span class="rt-long">Réseau </span>TSA</button>
+     <button data-mode="all" onclick="R.setReseau('all')">🌐 Tout</button>
+   </div>`;
+  NAV_GROUPS.forEach(g=>{
+    h += `<div class="nav-label">${esc(g.label)}</div>`;
+    g.keys.forEach(key=>{
+      const s=SEC[key]; if(!s) return;
+      h += `<button class="nav-btn${key==='psychiatres'?' active':''}" data-key="${s.key}" onclick="R.switch('${s.key}',this)">
+        <span class="ico">${s.icon}</span>
+        <div><div class="nav-title">${esc(s.label)}</div>${s.sub?`<div class="nav-sub">${esc(s.sub)}</div>`:''}</div>
+      </button>`;
+    });
+  });
+  h += `<div class="nav-label">Sectorisation</div>
+    <button class="nav-btn" data-key="secto" onclick="R.goSecto(this)">
+      <span class="ico">🗺️</span>
+      <div><div class="nav-title">Secteur psy</div><div class="nav-sub">Par adresse ou DDN</div></div>
+    </button>`;
+  h += `<div class="nav-footer"><span class="sync-dot"></span>Synchro Google Sheets<br><span id="last-update" style="color:#bbb;font-size:9px"></span></div>`;
+  document.getElementById('nav').innerHTML = h;
+}
+
+function buildSections(){
+  let h='';
+  SECTIONS.forEach((s,i)=>{
+    const k=s.key;
+    let filters = `<div class="search-wrap"><span class="search-ico">🔍</span><input id="${k}-search" placeholder="Nom, ville, commentaire…" oninput="R.render('${k}')"></div>`;
+    if(s.typeMenu) filters += `<details class="type-filter" id="${k}-typedet"><summary>${esc(s.typeMenu.label)} : <span id="${k}-typelabel">Toutes</span> ▾</summary><div class="type-filter-menu" id="${k}-typemenu"></div></details>`;
+    (s.selects||[]).forEach(sel=>{
+      filters += `<select class="filter-select" id="${k}-sel-${sel.id}" onchange="R.setSelect('${k}','${sel.id}',this.value)">`+
+        sel.options.map(o=>`<option value="${o[0]}">${esc(o[1])}</option>`).join('')+`</select>`;
+    });
+    filters += `<select class="filter-select" id="${k}-dept" onchange="R.render('${k}')"><option value="">Tous dép.</option></select>`;
+    (s.menus||[]).forEach(m=>{
+      filters += `<details class="type-filter" id="${k}-menudet-${m.id}"><summary>${esc(m.label)} : <span id="${k}-menulabel-${m.id}">Toutes</span> ▾</summary><div class="type-filter-menu" id="${k}-menu-${m.id}"></div></details>`;
+    });
+    (s.chips||[]).forEach(c=>{
+      filters += `<button class="chip chip-bool" id="${k}-chip-${c.id}" data-active="false" onclick="R.toggleChip('${k}','${c.id}')">${c.label}</button>`;
+    });
+    filters += `<button class="btn-reset" onclick="R.reset('${k}')">↺ Reset</button>`;
+    filters += `<span class="count-badge"><strong id="${k}-count">0</strong> <span id="${k}-noun">${esc(s.noun[1])}</span></span>`;
+
+    h += `<div id="sec-${k}" class="section${i===0?' active':''}">
+      <div class="topbar">${filters}</div>
+      <div class="body-wrap">
+        <div class="map-wrap">
+          <div id="map-${k}" class="map-el"></div>
+          <div id="detail-${k}" class="detail-panel"></div>
+          <div class="zone-bar">
+            <div class="zone-input-wrap">
+              <input type="text" id="zone-${k}" placeholder="📍 Zoomer sur une ville, un quartier…" oninput="R.onZone('${k}')" onkeydown="if(event.key==='Enter')R.searchZone('${k}')">
+              <button class="zone-clear" id="zone-clear-${k}" onclick="R.clearZone('${k}')">✕</button>
+              <div class="zone-suggestions" id="zone-sugg-${k}"></div>
+            </div>
+            <button class="zone-btn" onclick="R.searchZone('${k}')">Rechercher</button>
+          </div>
+          <div class="mobile-fabs">
+            <button class="mobile-filter-btn" onclick="R.toggleFilters('${k}')">⚙️ Filtres</button>
+            <button class="mobile-list-btn" onclick="R.toggleList('${k}')">☰ Liste</button>
+          </div>
+        </div>
+        <div class="sidebar">
+          <div class="sidebar-head" onclick="R.toggleList('${k}')"><span class="sidebar-title" id="${k}-shead">Chargement…</span><button class="export-btn" onclick="event.stopPropagation();R.openExport('${k}')">📋 Extraire</button></div>
+          <div class="sidebar-tools"><div class="sidebar-search-wrap"><span class="search-ico">🔎</span><input id="${k}-lsearch" placeholder="Chercher dans la liste…" oninput="R.render('${k}')"></div></div>
+          <div class="sidebar-list" id="${k}-slist"></div>
+        </div>
+      </div>
+    </div>`;
+  });
+  h += `<div id="sec-secto" class="section">
+    <div class="topbar">
+      <div class="secto-modes">
+        <div class="secto-field" style="position:relative">
+          <label>📍 Adresse</label>
+          <input id="secto-addr" placeholder="Ville, adresse, arrondissement…" autocomplete="off"
+            oninput="sectoInput()" onkeydown="if(event.key==='Enter')sectoGo()">
+          <button class="go" onclick="sectoGo()">Chercher</button>
+          <div class="secto-sugg" id="secto-sugg"></div>
+        </div>
+        <span class="secto-or">ou</span>
+        <div class="secto-field">
+          <label>🎂 Naissance</label>
+          <input id="secto-ddn" placeholder="jj/mm" style="width:70px" onkeydown="if(event.key==='Enter')sectoDDN()">
+          <button class="go" onclick="sectoDDN()">Chercher</button>
+        </div>
+        <button class="btn-reset" onclick="sectoReset()">↺ Reset</button>
+      </div>
+    </div>
+    <div class="body-wrap">
+      <div class="map-wrap">
+        <div id="map-secto" class="map-el"></div>
+        <div class="mobile-fabs"><button class="mobile-filter-btn" onclick="R.sectoFilters()">🔍 Recherche</button><button class="mobile-list-btn" onclick="R.sectoList()">☰ Résultat</button></div>
+      </div>
+      <div class="sidebar">
+        <div class="sidebar-head" onclick="R.toggleList('secto')"><span class="sidebar-title" id="secto-shead">Sectorisation psychiatrique</span></div>
+        <div class="sidebar-list" id="secto-result">
+          <div class="secto-empty">🗺️<br><br>Entrez l'<b>adresse du patient</b> pour connaître son CMP et son secteur,<br>ou sa <b>date de naissance</b> (jj/mm) pour l'unité d'hospitalisation à Marseille.</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('main').innerHTML = h;
+}
+
+// ══════════════════════════════════════════════════════
+//  CARTES LEAFLET
+// ══════════════════════════════════════════════════════
+function makeIcon(fill,dark){
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="26" height="34" viewBox="0 0 26 34"><path d="M13 0C5.82 0 0 5.82 0 13c0 8.85 13 21 13 21S26 21.85 26 13C26 5.82 20.18 0 13 0z" fill="${fill}" stroke="${dark}" stroke-width="2"/><circle cx="13" cy="13" r="5" fill="${dark}"/></svg>`;
+  return L.divIcon({html:svg,className:'',iconSize:[26,34],iconAnchor:[13,34],popupAnchor:[0,-34]});
+}
+function colorFor(s,e){ const c=s.color(e.type, ST[s.key].types); return c||{fill:'#ccc',dark:'#888'}; }
+function initMap(k){
+  const st=ST[k]; if(st.inited) return; st.inited=true;
+  const s=SEC[k];
+  st.map=L.map('map-'+k,{zoomControl:true}).setView(s.view.center,s.view.zoom);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(st.map);
+  // légende
+  const seen={}, items=[];
+  st.data.forEach(e=>{ if(!e.type||seen[e.type])return; seen[e.type]=1; const c=colorFor(s,e); items.push([e.type,c.fill,c.dark]); });
+  const ctrl=L.control({position:'bottomright'});
+  ctrl.onAdd=()=>{ const d=L.DomUtil.create('div','map-legend'); d.innerHTML=`<div class="legend-title">Légende</div>`+items.map(([l,f,dk])=>`<div class="legend-row"><div class="legend-dot" style="background:${f};border:2px solid ${dk}"></div>${esc(l)}</div>`).join(''); return d; };
+  ctrl.addTo(st.map);
+  st.data.forEach((e,i)=>{
+    if(!validLatLng(e.lat,e.lng)) return;
+    const c=colorFor(s,e);
+    const m=L.marker([e.lat,e.lng],{icon:makeIcon(c.fill,c.dark)}).addTo(st.map);
+    m.on('click',()=>R.select(k,i)); st.markers[i]=m;
+  });
+  st.map.on('moveend',()=>R.render(k));
+}
+
+// ══════════════════════════════════════════════════════
+//  FILTRAGE
+// ══════════════════════════════════════════════════════
+function baseFiltered(k){
+  const s=SEC[k], st=ST[k];
+  const q=(document.getElementById(k+'-search').value||'').toLowerCase();
+  const dept=document.getElementById(k+'-dept').value;
+  return st.data.filter(e=>{
+    if(!validLatLng(e.lat,e.lng)) return false;   // pas de géoloc valide => entrée masquée et non comptée
+    if(s.tsa && RESEAU_MODE==='tsa' && !e.reseauTSA) return false;
+    if(s.typeMenu){ if(!st.typeSet.size) return false; if(!st.typeSet.has(e.type)) return false; }
+    if(dept && e.dpt!==dept) return false;
+    // selects
+    for(const sel of (s.selects||[])){ const v=st.selects[sel.id]||''; if(!sel.test(e,v)) return false; }
+    // menus (attributs, OU intra-menu, ET inter-menu)
+    for(const m of (s.menus||[])){
+      const set=st.menus[m.id]; if(!set||!set.size) continue;
+      if(m.match){ if(!m.match(e,set)) return false; }
+      else { let ok=false; for(const c of set){ if(Y(e,c)){ok=true;break;} } if(!ok) return false; }
+    }
+    // chips toggles
+    for(const c of (s.chips||[])){
+      if(st.chips[c.id]){
+        if(c.test){ if(!c.test(e)) return false; }
+        else if(c.id==='__visio'){ if(!yes(e.visio)) return false; }
+        else if(c.id==='__groupes'){ if(!yes(e.groupes)) return false; }
+        else { if(!Y(e,c.id)) return false; }
+      }
+    }
+    if(q && !(e.nom||'').toLowerCase().includes(q) && !(e.ville||'').toLowerCase().includes(q) && !(e.commentaire||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+function listSearchVal(k){ const el=document.getElementById(k+'-lsearch'); return el?el.value.trim().toLowerCase():''; }
+function matchesList(k,e){ const q=listSearchVal(k); if(!q) return true; const hay=[e.nom,e.ville,e.cp,e.dpt,e.adresse,e.type,e.orientation,e.specialite,e.association,e.domaine,e.asso,e.organisme,e.ratt,e.spec,e.population,e.public,e.prestations,e.territoire,e.tel,e.mail,e.commentaire].filter(Boolean).join(' ').toLowerCase(); return hay.includes(q); }
+function matchesBounds(k,e){ const st=ST[k]; if(!st.map) return true; if(!validLatLng(e.lat,e.lng)) return true; return st.map.getBounds().pad(0.02).contains([e.lat,e.lng]); }
+function visibleRows(k){ return baseFiltered(k).filter(e=>matchesList(k,e)&&matchesBounds(k,e)).sort((a,b)=>(a.nom||'').localeCompare(b.nom||'','fr')); }
+
+// ══════════════════════════════════════════════════════
+//  RENDU
+// ══════════════════════════════════════════════════════
+function render(k){
+  const s=SEC[k], st=ST[k];
+  const vis=visibleRows(k);
+  const visSet=new Set(vis.map(e=>st.data.indexOf(e)));
+  document.getElementById(k+'-count').textContent=vis.length;
+  document.getElementById(k+'-noun').textContent = vis.length>1? s.noun[1] : s.noun[0];
+  if(st.map){ Object.entries(st.markers).forEach(([i,m])=>{ visSet.has(Number(i)) ? (st.map.hasLayer(m)||m.addTo(st.map)) : (st.map.hasLayer(m)&&st.map.removeLayer(m)); }); }
+  document.getElementById(k+'-shead').textContent=`${vis.length} ${vis.length>1?s.noun[1]:s.noun[0]} affiché${vis.length>1?'s':''}`;
+  const list=document.getElementById(k+'-slist');
+  if(!vis.length){ list.innerHTML=`<div class="empty"><div class="emoji">🔍</div><p>Aucun résultat</p></div>`; return; }
+  list.innerHTML=vis.map(e=>{
+    const i=st.data.indexOf(e); const c=colorFor(s,e);
+    const tags=(s.tags?s.tags(e):[]).map(t=>`<span class="tag" style="background:${t[0]};color:${t[1]}">${t[2]}</span>`).join('');
+    return `<div class="card${st.sel===i?' active':''}" onclick="R.select('${k}',${i})" id="${k}card-${i}">
+      <div class="card-dot" style="background:${c.fill};border:2px solid ${c.dark}"></div>
+      <div style="flex:1;min-width:0">
+        <div class="card-type" style="color:${c.dark}">${s.typeLabel?s.typeLabel(e):esc(e.type)}</div>
+        <div class="card-name">${esc(e.nom)}</div>
+        ${s.cardExtra?s.cardExtra(e):''}
+        <div class="card-ville">${s.cardSub?s.cardSub(e):esc(e.ville)}</div>
+        ${tags?`<div class="card-tags">${tags}</div>`:''}
+      </div></div>`;
+  }).join('');
+}
+function navBtn(adresse,lat,lng){
+  const dest=encodeURIComponent(adresse||(lat+','+lng));
+  return `<a class="action-btn" href="https://www.google.com/maps/dir/?api=1&destination=${dest}" target="_blank" style="background:#e8f4e8;border-color:#5a9972;color:#2a6a3a;">🧭 Itinéraire</a>`;
+}
+function select(k,i){
+  const s=SEC[k], st=ST[k], e=st.data[i]; if(!e) return;
+  closeMobileOverlays(k); st.sel=i;
+  const c=colorFor(s,e);
+  if(st.map && validLatLng(e.lat,e.lng)) st.map.flyTo([e.lat,e.lng],13,{duration:.8});
+  document.querySelectorAll('#'+k+'-slist .card').forEach(x=>x.classList.remove('active'));
+  const card=document.getElementById(k+'card-'+i); if(card){ card.classList.add('active'); if(!isMobile()) card.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+  const fields=(s.fields?s.fields(e):[]).filter(Boolean).map(f=>`<div class="detail-field${f.full?' full':''}"><label>${f.l}</label><p>${f.v}</p></div>`).join('');
+  const pills=(s.pills?s.pills(e):[]).map(p=>`<span class="pill" style="background:${p[0]}">${p[1]}</span>`).join('');
+  const acts=[]; acts.push(navBtn(e.rue||e.ville,e.lat,e.lng));
+  if(e.tel)acts.push(`<button class="action-btn" onclick="R.copyVal(this,'${jsstr(e.tel)}')">📞 ${esc(e.tel)}</button>`);
+  if(e.mail)acts.push(`<button class="action-btn" onclick="R.copyVal(this,'${jsstr(e.mail)}')">✉️ ${esc(e.mail)}</button>`);
+  if(e.site)acts.push(`<a class="action-btn" href="${esc(e.site)}" target="_blank">🌐 Site</a>`);
+  if(s.share)acts.push(`<button class="share-btn" onclick="R.shareFiche('${k}',${i})">📤 Partager cette fiche</button>`);
+  let docsHtml='';
+  const docs = s.docs ? s.docs(e) : [];
+  const flyerUrl = s.flyer ? s.flyer(e) : '';
+  if((docs && docs.length) || flyerUrl){
+    let items=docs.map(d=>`<a class="doc-btn" href="${esc(driveDownload(d.url))}" target="_blank" rel="noopener">📄 ${esc(d.label)}</a>`).join('');
+    if(flyerUrl) items+=`<a class="doc-btn flyer" href="${esc(driveDownload(flyerUrl))}" target="_blank" rel="noopener">📰 Flyer</a>`;
+    docsHtml=`<div class="detail-docs"><label>Documents à télécharger</label><div class="doc-list">${items}</div></div>`;
+  }
+  const sub = s.detailSub ? s.detailSub(e) : `📍 ${esc(e.ville)} (${esc(e.cp)})${e.dpt?' — Dép. '+esc(e.dpt):''}`;
+  const det=document.getElementById('detail-'+k); det.style.display='flex';
+  if(isMobile()){ const sc=secEl(k); if(sc)sc.scrollTop=0; const bw=sc&&sc.querySelector('.body-wrap'); if(bw)bw.scrollTop=0; }
+  setTimeout(()=>{ if(st.map){ try{ st.map.invalidateSize(false); }catch(_){} } },80);
+  det.innerHTML=`<button class="close-btn" onclick="document.getElementById('detail-${k}').style.display='none'">✕</button>
+    <div class="detail-scroll">
+    <div class="detail-head" style="border-top:4px solid ${c.dark};border-radius:16px 16px 0 0">
+      <div class="detail-type" style="color:${c.dark}">${s.typeLabel?s.typeLabel(e):esc(e.type)}</div>
+      <div class="detail-name">${esc(e.nom)}</div>
+      <div class="detail-sub">${sub}</div>
+    </div>
+    ${fields?`<div class="detail-grid">${fields}</div>`:''}
+    ${pills?`<div class="detail-pills">${pills}</div>`:''}
+    ${e.commentaire?`<div class="detail-comment"><label>Note</label><p>${esc(e.commentaire)}</p></div>`:''}
+    ${docsHtml}
+    ${acts.length?`<div class="detail-actions">${acts.join('')}</div>`:''}
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  MENUS DÉROULANTS (type + attributs)
+// ══════════════════════════════════════════════════════
+function buildTypeMenu(k){
+  const s=SEC[k], st=ST[k]; if(!s.typeMenu) return;
+  st.types=[...new Set(st.data.map(e=>e.type).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  st.typeSet=new Set(st.types);
+  const menu=document.getElementById(k+'-typemenu');
+  menu.innerHTML = `<div class="menu-tools"><button onclick="R.allTypes('${k}',true)">Tout</button><button onclick="R.allTypes('${k}',false)">Aucun</button></div>`+
+    st.types.map(t=>{ const c=colorFor(s,{type:t}); return `<label><input type="checkbox" value="${esc(t)}" checked onchange="R.toggleType('${k}',this.value,this.checked)"><span class="swatch" style="background:${c.fill};border:1.5px solid ${c.dark}"></span>${esc(t)}</label>`; }).join('');
+  updateTypeLabel(k);
+}
+function updateTypeLabel(k){
+  const st=ST[k], lab=document.getElementById(k+'-typelabel'); if(!lab) return;
+  if(!st.typeSet.size) lab.textContent='Aucune';
+  else if(st.typeSet.size===st.types.length) lab.textContent='Toutes';
+  else if(st.typeSet.size===1) lab.textContent=[...st.typeSet][0];
+  else lab.textContent=st.typeSet.size+' types';
+}
+function buildAttrMenus(k){
+  const s=SEC[k], st=ST[k];
+  (s.menus||[]).forEach(m=>{
+    st.menus[m.id]=new Set();
+    let opts;
+    if(m.dyn){ opts=[...new Set(st.data.map(m.dyn).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')).map(v=>[v,v]); }
+    else opts=m.cols;
+    const menu=document.getElementById(k+'-menu-'+m.id);
+    menu.innerHTML=`<div class="menu-tools"><button onclick="R.clearMenu('${k}','${m.id}')">Effacer</button></div>`+
+      opts.map(o=>`<label><input type="checkbox" value="${esc(o[0])}" onchange="R.toggleMenu('${k}','${m.id}',this.value,this.checked)">${esc(o[1])}</label>`).join('');
+    updateMenuLabel(k,m.id);
+  });
+}
+function updateMenuLabel(k,id){
+  const st=ST[k], lab=document.getElementById(k+'-menulabel-'+id); if(!lab) return;
+  const n=st.menus[id]?st.menus[id].size:0;
+  lab.textContent = n===0?'Toutes' : n+' sél.';
+}
+
+// ══════════════════════════════════════════════════════
+//  RECHERCHE DE ZONE (Photon)
+// ══════════════════════════════════════════════════════
+let zoneTimer=null;
+function onZone(k){
+  const val=document.getElementById('zone-'+k).value.trim();
+  document.getElementById('zone-clear-'+k).style.display = val?'block':'none';
+  const sugg=document.getElementById('zone-sugg-'+k);
+  if(val.length<2){ sugg.style.display='none'; return; }
+  clearTimeout(zoneTimer); zoneTimer=setTimeout(()=>fetchSugg(k,val),300);
+}
+async function fetchSugg(k,val){
+  const sugg=document.getElementById('zone-sugg-'+k);
+  try{
+    const res=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(val)}&limit=6&lang=fr&lat=43.5&lon=5.5`);
+    const data=await res.json();
+    if(!data.features||!data.features.length){ sugg.style.display='none'; return; }
+    sugg.innerHTML=data.features.map(f=>{
+      const p=f.properties; const seen=new Set();
+      const parts=[p.name, p.street&&p.housenumber?p.housenumber+' '+p.street:p.street, p.postcode, p.city||p.town||p.village].filter(Boolean);
+      const label=parts.filter(x=>{if(seen.has(x))return false;seen.add(x);return true;}).slice(0,4).join(', ');
+      const icon=p.osm_value==='city'||p.type==='city'?'🏙️':'📍';
+      return `<div class="zone-suggestion" onclick="R.applyZone('${k}',${f.geometry.coordinates[1]},${f.geometry.coordinates[0]},'${jsstr(label)}')">${icon} ${esc(label)}</div>`;
+    }).join('');
+    sugg.style.display='block';
+  }catch(e){ sugg.style.display='none'; }
+}
+async function searchZone(k){
+  const val=document.getElementById('zone-'+k).value.trim();
+  document.getElementById('zone-sugg-'+k).style.display='none';
+  if(!val){ clearZone(k); return; }
+  try{
+    const res=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(val)}&limit=1&lang=fr&lat=43.5&lon=5.5`);
+    const data=await res.json();
+    if(data.features&&data.features.length){ const f=data.features[0], p=f.properties; const label=[p.name,p.city||p.town||p.village,p.postcode].filter(Boolean).join(', '); applyZone(k,f.geometry.coordinates[1],f.geometry.coordinates[0],label); }
+  }catch(e){}
+}
+function applyZone(k,lat,lng,label){
+  const st=ST[k]; if(!st.map) return;
+  document.getElementById('zone-sugg-'+k).style.display='none';
+  document.getElementById('zone-clear-'+k).style.display='block';
+  const input=document.getElementById('zone-'+k); if(input.value.length<3) input.value=label;
+  if(st.zoneMarker){ st.map.removeLayer(st.zoneMarker); st.zoneMarker=null; }
+  const icon=L.divIcon({html:'<div class="zone-marker-icon"></div>',className:'',iconSize:[18,18],iconAnchor:[9,9]});
+  st.zoneMarker=L.marker([+lat,+lng],{icon,zIndexOffset:1000}).bindTooltip(label,{direction:'top',offset:[0,-10]}).addTo(st.map);
+  st.map.flyTo([+lat,+lng],13,{duration:.8});
+  setTimeout(()=>render(k),900);
+}
+function clearZone(k){
+  const st=ST[k];
+  const input=document.getElementById('zone-'+k), cb=document.getElementById('zone-clear-'+k), sugg=document.getElementById('zone-sugg-'+k);
+  if(input)input.value=''; if(cb)cb.style.display='none'; if(sugg)sugg.style.display='none';
+  if(st.zoneMarker&&st.map){ st.map.removeLayer(st.zoneMarker); st.zoneMarker=null; }
+  if(st.map){ const v=SEC[k].view; st.map.flyTo(v.center,v.zoom,{duration:.8}); }
+  render(k);
+}
+
+// ══════════════════════════════════════════════════════
+//  EXPORT
+// ══════════════════════════════════════════════════════
+function openExport(k){
+  const s=SEC[k]; let rows=visibleRows(k);
+  if(s.exportFilter) rows=rows.filter(s.exportFilter);
+  const line = s.exportLine || (e=>`${e.nom||'Sans nom'} — ${e.adresse||e.ville||'Adresse non renseignée'}`);
+  const text=rows.length? rows.map(line).join('\n') : 'Aucun résultat affiché.';
+  document.getElementById('export-title').textContent='Liste à copier';
+  document.getElementById('mail-export-btn').style.display='none';
+  document.getElementById('export-subtitle').textContent=`${rows.length} ${rows.length>1?s.noun[1]:s.noun[0]} dans l'extraction.`;
+  const area=document.getElementById('export-text'); area.value=text;
+  document.getElementById('copy-export-btn').textContent='Copier';
+  document.getElementById('export-modal').classList.add('open');
+  setTimeout(()=>{area.focus();area.select();},50);
+}
+function shareFiche(k,i){
+  const s=SEC[k], e=ST[k].data[i]; if(!e) return;
+  const L=[]; L.push(e.nom||'');
+  if(e.adresse) L.push('Adresse : '+e.adresse);
+  if(e.tel) L.push('Téléphone : '+e.tel);
+  if(e.mail) L.push('Mail : '+e.mail);
+  if(e.site) L.push('Site : '+e.site);
+  const docs = s.docs ? s.docs(e) : [];
+  const flyerUrl = s.flyer ? s.flyer(e) : '';
+  if(docs.length){ L.push(''); L.push('Dossiers de demande :'); docs.forEach(d=>L.push('• '+d.label+' : '+d.url)); }
+  if(flyerUrl){ if(!docs.length)L.push(''); L.push('Flyer : '+flyerUrl); }
+  const text=L.join('\n');
+  document.getElementById('export-title').textContent='Partager cette fiche';
+  document.getElementById('export-subtitle').textContent=e.nom||'';
+  document.getElementById('export-text').value=text;
+  document.getElementById('copy-export-btn').textContent='Copier';
+  document.getElementById('mail-export-btn').style.display='none';
+  document.getElementById('export-modal').classList.add('open');
+  setTimeout(()=>{const a=document.getElementById('export-text');a.focus();a.select();},50);
+}
+function closeExport(){ document.getElementById('export-modal').classList.remove('open'); }
+function fallbackCopy(val){
+  const ta=document.createElement('textarea'); ta.value=val; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand('copy'); }catch(e){}
+  document.body.removeChild(ta);
+}
+function copyExport(){
+  const area=document.getElementById('export-text'); area.focus(); area.select();
+  const done=()=>document.getElementById('copy-export-btn').textContent='Copié ✓';
+  if(navigator.clipboard&&window.isSecureContext){ navigator.clipboard.writeText(area.value).then(done).catch(()=>{document.execCommand('copy');done();}); }
+  else { document.execCommand('copy'); done(); }
+}
+
+// ══════════════════════════════════════════════════════
+//  MOBILE
+// ══════════════════════════════════════════════════════
+function isMobile(){ return window.matchMedia && window.matchMedia('(max-width: 1024px)').matches; }
+function secEl(k){ return document.getElementById('sec-'+k); }
+function toggleList(k){ const s=secEl(k); const open=!s.classList.contains('mobile-list-open'); s.classList.remove('mobile-filters-open'); s.classList.toggle('mobile-list-open',open); if(open)hideDetail(k); setTimeout(()=>{ if(ST[k].map)ST[k].map.invalidateSize(); },260); }
+function toggleFilters(k){ const s=secEl(k); const open=!s.classList.contains('mobile-filters-open'); s.classList.remove('mobile-list-open'); s.classList.toggle('mobile-filters-open',open); if(open)hideDetail(k); }
+function hideDetail(k){ const d=document.getElementById('detail-'+k); if(d)d.style.display='none'; ST[k].sel=null; document.querySelectorAll('#'+k+'-slist .card').forEach(x=>x.classList.remove('active')); }
+function closeMobileOverlays(k){ const s=secEl(k); if(s)s.classList.remove('mobile-list-open','mobile-filters-open'); }
+
+// ══════════════════════════════════════════════════════
+//  NAV + RESET
+// ══════════════════════════════════════════════════════
+function switchSection(k,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active','mobile-list-open','mobile-filters-open'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  secEl(k).classList.add('active'); if(btn)btn.classList.add('active');
+  setTimeout(()=>{ initMap(k); if(ST[k].map)ST[k].map.invalidateSize(); render(k); },50);
+}
+function setReseau(mode){
+  RESEAU_MODE=mode;
+  document.querySelectorAll('#reseau-toggle button').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  SECTIONS.forEach(s=>{ if(ST[s.key].inited || secEl(s.key).classList.contains('active')) render(s.key); });
+}
+function reset(k){
+  const s=SEC[k], st=ST[k];
+  document.getElementById(k+'-search').value='';
+  document.getElementById(k+'-dept').value='';
+  const ls=document.getElementById(k+'-lsearch'); if(ls)ls.value='';
+  if(s.typeMenu){ st.typeSet=new Set(st.types); document.querySelectorAll('#'+k+'-typemenu input').forEach(cb=>cb.checked=true); updateTypeLabel(k); }
+  (s.selects||[]).forEach(sel=>{ st.selects[sel.id]=''; const el=document.getElementById(k+'-sel-'+sel.id); if(el)el.value=''; });
+  (s.menus||[]).forEach(m=>{ st.menus[m.id]=new Set(); document.querySelectorAll('#'+k+'-menu-'+m.id+' input').forEach(cb=>cb.checked=false); updateMenuLabel(k,m.id); });
+  (s.chips||[]).forEach(c=>{ st.chips[c.id]=false; const el=document.getElementById(k+'-chip-'+c.id); if(el){el.dataset.active='false';el.classList.remove('active');} });
+  st.sel=null; document.getElementById('detail-'+k).style.display='none';
+  if(k==='idel'&&st.sectorLayer&&st.map){ st.map.removeLayer(st.sectorLayer); st.sectorLayer=null; secteurReq++; }
+  clearZone(k);
+}
+
+// ══════════════════════════════════════════════════════
+//  DÉLIMITATION DU SECTEUR IDEL (contour vert sur la carte)
+// ══════════════════════════════════════════════════════
+let secteurReq=0;
+async function drawSecteur(v){
+  const st=ST['idel']; if(!st.map) return;
+  const myReq=++secteurReq;
+  if(st.sectorLayer){ st.map.removeLayer(st.sectorLayer); st.sectorLayer=null; }
+  if(!v){ render('idel'); return; }
+  const parts=String(v).split(/;/).map(x=>x.trim()).filter(Boolean);
+  const layer=L.featureGroup();
+  for(const p of parts){
+    try{
+      const q=/marseille/i.test(p)||/^\d{5}$/.test(p) ? p : p+', France';
+      const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&polygon_geojson=1&limit=1&countrycodes=fr&q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}});
+      const d=await r.json();
+      if(myReq!==secteurReq) return; // une sélection plus récente a eu lieu
+      if(d.length&&d[0].geojson&&(d[0].geojson.type==='Polygon'||d[0].geojson.type==='MultiPolygon')){
+        L.geoJSON(d[0].geojson,{style:{color:'#2e8a56',weight:2.5,fillColor:'#5a9972',fillOpacity:0.16}}).addTo(layer);
+      } else if(d.length){
+        // pas de polygone dispo : petit cercle sur le point
+        L.circle([+d[0].lat,+d[0].lon],{radius:2500,color:'#2e8a56',weight:2,fillColor:'#5a9972',fillOpacity:0.14}).addTo(layer);
+      }
+    }catch(e){}
+  }
+  if(myReq!==secteurReq) return;
+  if(layer.getLayers().length){
+    st.sectorLayer=layer.addTo(st.map);
+    try{ st.map.fitBounds(layer.getBounds().pad(0.1)); }catch(e){}
+  }
+  setTimeout(()=>render('idel'),650);
+}
+
+
+// ══════════════════════════════════════════════════════
+//  SECTORISATION PSYCHIATRIQUE
+//  Données par défaut = copie de la feuille "Sectorisation" du Sheet.
+//  Dès que CSV_SECTO est renseigné, le site lit le Sheet (modifiable par Doussy).
+// ══════════════════════════════════════════════════════
+const CSV_SECTO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4eihKm0vSfzOt9N8N0eTFoftpH0-B1EfQdkivVMOofFEeynkWIF6MhylxQOZsQpvbvorbHqEskaPN/pub?gid=1568796818&single=true&output=csv';
+const SECTO_DEFAULT = [{"type": "DDN","secteur": "13G01","zone": "","zonet": "","ddn1": "01/01","ddn2": "26/01","hop": "AP-HM Sainte-Marguerite (Solaris)","unite": "Vega","telu": "poste 46.804","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G02","zone": "","zonet": "","ddn1": "27/01","ddn2": "21/02","hop": "AP-HM Conception","unite": "Dassa","telu": "poste 35.013 / 35.018","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G03","zone": "","zonet": "","ddn1": "22/02","ddn2": "19/03","hop": "AP-HM Conception","unite": "Zen","telu": "poste 35.012 / 35.017","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G04","zone": "","zonet": "","ddn1": "20/03","ddn2": "14/04","hop": "AP-HM Conception","unite": "Chabannes","telu": "poste 35.011 / 35.016","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G05","zone": "","zonet": "","ddn1": "15/04","ddn2": "10/05","hop": "AP-HM Sainte-Marguerite (Solaris)","unite": "Antarès","telu": "poste 44.752","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G06","zone": "","zonet": "","ddn1": "11/05","ddn2": "06/06","hop": "AP-HM Sainte-Marguerite (Solaris)","unite": "Orion","telu": "poste 22.811","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G07","zone": "","zonet": "","ddn1": "07/06","ddn2": "19/06","hop": "CH Valvert","unite": "Les Cèdres","telu": "04 91 87 68 93","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G08","zone": "","zonet": "","ddn1": "20/06","ddn2": "02/07","hop": "CH Valvert","unite": "Les Lilas","telu": "04 91 87 67 61","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G09","zone": "","zonet": "","ddn1": "03/07","ddn2": "15/07","hop": "CH Valvert","unite": "Les Tilleuls","telu": "04 91 87 67 57","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G10","zone": "","zonet": "","ddn1": "16/07","ddn2": "28/07","hop": "CH Valvert","unite": "Les Lavandes","telu": "04 91 87 67 42","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G11","zone": "","zonet": "","ddn1": "29/07","ddn2": "23/08","hop": "CH Édouard Toulouse","unite": "Passerelle 1/2/3","telu": "04 91 96 98 92","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G12","zone": "","zonet": "","ddn1": "24/08","ddn2": "18/09","hop": "CH Édouard Toulouse","unite": "Trieste","telu": "04 91 96 99 03","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G13","zone": "","zonet": "","ddn1": "19/09","ddn2": "14/10","hop": "CH Édouard Toulouse","unite": "Etap13","telu": "04 91 96 99 18","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G14","zone": "","zonet": "","ddn1": "15/10","ddn2": "09/11","hop": "CH Édouard Toulouse","unite": "Etap14","telu": "04 91 96 99 26","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G15","zone": "","zonet": "","ddn1": "10/11","ddn2": "05/12","hop": "CH Édouard Toulouse","unite": "Mistral","telu": "04 91 96 99 40","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "DDN","secteur": "13G16","zone": "","zonet": "","ddn1": "06/12","ddn2": "31/12","hop": "CH Édouard Toulouse","unite": "Nef","telu": "04 91 96 99 49","cmp": "","adrc": "","telc": "","mailc": "","fiable": "Oui","com": "Hospitalisation adulte Marseille : par date de naissance"},{"type": "Zone","secteur": "Marseille 1e","zone": "13001","zonet": "","ddn1": "","ddn2": "","hop": "CH Édouard Toulouse","unite": "","telu": "","cmp": "CMP Pressensé (1er–2e)","adrc": "39 rue Francis de Pressensé, 13001 Marseille","telc": "04 91 90 01 28","mailc": "cmppressense@ch-edouard-toulouse.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "Marseille 2e","zone": "13002","zonet": "","ddn1": "","ddn2": "","hop": "CH Édouard Toulouse","unite": "","telu": "","cmp": "CMP Pressensé / CMP Belle de Mai","adrc": "39 rue F. de Pressensé (13001) / 150 rue de Crimée (13003)","telc": "04 91 90 01 28 / 04 91 50 20 37","mailc": "cmppressense@ch-edouard-toulouse.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "Marseille 3e","zone": "13003","zonet": "","ddn1": "","ddn2": "","hop": "CH Édouard Toulouse","unite": "","telu": "","cmp": "CMP Belle de Mai (2e–3e)","adrc": "150 rue de Crimée, 13003 Marseille","telc": "04 91 50 20 37","mailc": "cmpbelledemais12@ch-edouard-toulouse.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "Marseille 4e","zone": "13004","zonet": "","ddn1": "","ddn2": "","hop": "AP-HM Conception","unite": "","telu": "","cmp": "CMP Lafon – Dr Chabanes (4e)","adrc": "9 rue Lafon, 13006 Marseille","telc": "04 91 43 59 25 / 04 91 01 65 10","mailc": "cmpsecteur4@ap-hm.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "Marseille 5e","zone": "13005","zonet": "","ddn1": "","ddn2": "","hop": "AP-HM Conception","unite": "","telu": "","cmp": "CMP Lafon – Dr Dassa (5e–6e)","adrc": "9 rue Lafon, 13006 Marseille","telc": "04 91 43 59 25 / 04 91 01 65 10","mailc": "cmpdassa@ap-hm.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "Marseille 6e","zone": "13006","zonet": "","ddn1": "","ddn2": "","hop": "AP-HM Conception","unite": "","telu": "","cmp": "CMP Lafon – Dr Dassa / Dr Zendjidjian","adrc": "9 rue Lafon, 13006 Marseille","telc": "04 91 43 59 25 / 04 91 01 65 10","mailc": "cmpdassa@ap-hm.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "Marseille 7e","zone": "13007","zonet": "","ddn1": "","ddn2": "","hop": "AP-HM Conception","unite": "","telu": "","cmp": "CMP Lafon – Dr Zendjidjian (6e–7e)","adrc": "9 rue Lafon, 13006 Marseille","telc": "04 91 43 59 25 / 04 91 01 65 10","mailc": "cmpzen@ap-hm.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "Marseille 8e","zone": "13008","zonet": "","ddn1": "","ddn2": "","hop": "AP-HM Sainte-Marguerite (Solaris)","unite": "","telu": "","cmp": "CMP Solaris – Pr Cermolacce (8e–10e)","adrc": "44 & 50 boulevard Michelet, 13008 Marseille","telc": "04 91 22 04 00 / 04 91 22 28 20","mailc": "cmp8et10@ap-hm.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017; Deux CMP bd Michelet (ARS 2017) — répartition exacte 8e/9e/10e à vérifier"},{"type": "Zone","secteur": "Marseille 9e","zone": "13009","zonet": "","ddn1": "","ddn2": "","hop": "AP-HM Sainte-Marguerite (Solaris)","unite": "","telu": "","cmp": "CMP Solaris – Pr Lançon (9e)","adrc": "44 & 50 boulevard Michelet, 13008 Marseille","telc": "04 91 22 04 00 / 04 91 22 28 20","mailc": "secretariat.psy.lancon@ap-hm.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017; Deux CMP bd Michelet (ARS 2017) — répartition exacte 8e/9e/10e à vérifier"},{"type": "Zone","secteur": "Marseille 10e","zone": "13010","zonet": "","ddn1": "","ddn2": "","hop": "AP-HM Sainte-Marguerite (Solaris)","unite": "Vega","telu": "","cmp": "CMP Solaris – Pr Cermolacce (8e–10e)","adrc": "44 & 50 boulevard Michelet, 13008 Marseille","telc": "04 91 22 04 00 / 04 91 22 28 20","mailc": "cmp8et10@ap-hm.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017; Deux CMP bd Michelet (ARS 2017) — répartition exacte 8e/9e/10e à vérifier"},{"type": "Zone","secteur": "Marseille 11e (13G07)","zone": "13011","zonet": "","ddn1": "","ddn2": "","hop": "CH Valvert","unite": "Les Cèdres","telu": "","cmp": "CMP Saint-Marcel (11e)","adrc": "2 traverse Notre Dame, 13011 Marseille","telc": "04 91 44 90 04","mailc": "CMPSaintMarcel@ch-valvert.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "Marseille 12e (13G09)","zone": "13012","zonet": "","ddn1": "","ddn2": "","hop": "CH Valvert","unite": "Les Tilleuls","telu": "","cmp": "CMP Saint-Barnabé (12e arr.)","adrc": "101 avenue des Caillols, 13012 Marseille","telc": "04 91 93 95 30","mailc": "CMPSaintBarnabe@ch-valvert.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "Marseille 13e","zone": "13013","zonet": "","ddn1": "","ddn2": "","hop": "CH Édouard Toulouse","unite": "","telu": "","cmp": "CMP Sainte-Agnès (13e)","adrc": "1A rue Sainte Agnès, Marseille","telc": "04 91 70 90 72","mailc": "","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017; L'ARS 2017 indique CP 13004 pour cette adresse"},{"type": "Zone","secteur": "Marseille 14e","zone": "13014","zonet": "","ddn1": "","ddn2": "","hop": "CH Édouard Toulouse","unite": "","telu": "","cmp": "CMP La Marine Blanche II (14e)","adrc": "3 chemin de Saint-Joseph à Sainte-Marthe, 13014 Marseille","telc": "04 91 11 64 70","mailc": "secretariatcmpsecteur14@ch-edouard-toulouse.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "Marseille 15e","zone": "13015","zonet": "","ddn1": "","ddn2": "","hop": "CH Édouard Toulouse","unite": "","telu": "","cmp": "CMP La Viste (15e)","adrc": "43 avenue de la Viste, 13015 Marseille","telc": "04 91 60 44 43","mailc": "cmplaviste@ch-edouard-toulouse.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "Marseille 16e","zone": "13016","zonet": "","ddn1": "","ddn2": "","hop": "CH Édouard Toulouse","unite": "","telu": "","cmp": "CMP du Parc (16e)","adrc": "3 Route Nationale de la Viste, 13015 Marseille","telc": "04 91 03 09 95","mailc": "secretariatcmpduparc@ch-edouard-toulouse.fr","fiable": "Oui","com": "Hospitalisation : unité selon la date de naissance si non renseignée ici; CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "13G07","zone": "La Penne-sur-Huveaune","zonet": "","ddn1": "","ddn2": "","hop": "CH Valvert","unite": "Les Cèdres","telu": "04 91 87 68 93","cmp": "CMP Saint-Marcel","adrc": "2 traverse Notre Dame, 13011 Marseille","telc": "04 91 44 90 04","mailc": "CMPSaintMarcel@ch-valvert.fr","fiable": "Oui","com": "CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "13G09","zone": "Allauch; Plan-de-Cuques","zonet": "","ddn1": "","ddn2": "","hop": "CH Valvert","unite": "Les Tilleuls","telu": "04 91 87 67 57","cmp": "CMP d'Allauch – Plan-de-Cuques","adrc": "830 avenue Salvator Allende, 13190 Allauch","telc": "04 91 05 48 33","mailc": "","fiable": "Oui","com": "CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "13G08","zone": "Aubagne; Gémenos; Cuges-les-Pins; Roquevaire; Auriol; La Bouilladisse; La Destrousse; Peypin; Belcodène; Saint-Savournin; Gréasque; Cadolive","zonet": "","ddn1": "","ddn2": "","hop": "CH Valvert","unite": "Les Lilas","telu": "04 91 87 67 61","cmp": "CMP Barthélémy (Aubagne)","adrc": "2 rue du Docteur Barthélémy, 13400 Aubagne","telc": "04 42 03 64 64","mailc": "CMPAubagneAdultes@ch-valvert.fr","fiable": "Oui","com": "CMP adultes — source ARS PACA 2017. Aussi : CMP personnes âgées, 180 allée Robert de Govi, 04 42 01 65 41"},{"type": "Zone","secteur": "13G10","zone": "La Ciotat; Ceyreste; Roquefort-la-Bédoule; Carnoux-en-Provence; La Cadière-d’Azur; Saint-Cyr-sur-Mer","zonet": "","ddn1": "","ddn2": "","hop": "CH Valvert","unite": "Les Lavandes","telu": "04 91 87 67 42","cmp": "CMP L'Ile Verte (La Ciotat)","adrc": "372 avenue Guillaume Dulac, 13600 La Ciotat","telc": "04 42 73 45 75","mailc": "CMPLaCiotatAdultes@ch-valvert.fr","fiable": "Oui","com": "CMP adultes — source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Montperrin","zone": "Aix-en-Provence; Venelles; Éguilles; Le Tholonet; Meyreuil; Saint-Marc-Jaumegarde; Vauvenargues; Beaurecueil; Puyricard; Luynes","zonet": "Aix-en-Provence","ddn1": "","ddn2": "","hop": "CH Montperrin (Aix-en-Provence)","unite": "","telu": "","cmp": "CMP Boulegon (Aix centre)","adrc": "30 rue Boulegon, 13100 Aix-en-Provence","telc": "04 42 23 53 83","mailc": "","fiable": "Oui","com": "Répartition intra-Aix à vérifier — 3 autres CMP adultes à Aix : Jean Sutter (3 rue Joannon Marcel Provence, 04 42 23 92 87), Pierre Carabelli (Le Bel Ormeau, 373 av J.-P. Coste, 04 42 91 38 61), Le Pigonnet (av du Pigonnet, 04 42 16 18 57); Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Montperrin","zone": "Gardanne; Bouc-Bel-Air; Cabriès; Simiane-Collongue; Mimet; Meyreuil","zonet": "Gardanne","ddn1": "","ddn2": "","hop": "CH Montperrin (Aix-en-Provence)","unite": "","telu": "","cmp": "CMP Acanthe (Gardanne)","adrc": "26 rue de François, 13120 Gardanne","telc": "04 42 58 25 68","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Montperrin","zone": "Trets; Peynier; Rousset; Fuveau; Puyloubier; Châteauneuf-le-Rouge; Saint-Antonin-sur-Bayon","zonet": "Trets","ddn1": "","ddn2": "","hop": "CH Montperrin (Aix-en-Provence)","unite": "","telu": "","cmp": "CMP Arcade (Trets)","adrc": "Rue Félix Pyat, 13530 Trets","telc": "04 42 29 26 84","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Montperrin","zone": "Pertuis; La Tour-d’Aigues; Villelaure; Ansouis; Cadenet; Cucuron; Mirabeau; Grambois","zonet": "Pertuis","ddn1": "","ddn2": "","hop": "CH Montperrin (Aix-en-Provence)","unite": "","telu": "","cmp": "CMP Regain (Pertuis)","adrc": "74 place Garcin, 84120 Pertuis","telc": "04 90 08 80 23","mailc": "","fiable": "Oui","com": "Sud-Luberon (84) rattaché au CH Montperrin (13) — classé dans le 13 par l’ARS; Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Montperrin","zone": "Salon-de-Provence; Pélissanne; Lançon-Provence; Grans; Eyguières; La Barben; Aurons; Alleins; Vernègues","zonet": "Salon-de-Provence","ddn1": "","ddn2": "","hop": "CH Montperrin (Aix-en-Provence)","unite": "","telu": "","cmp": "CMP Villa Blanche (Salon)","adrc": "203 avenue Gaston Cabrier, 13300 Salon-de-Provence","telc": "04 90 56 07 87","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Montperrin","zone": "Vitrolles","zonet": "Vitrolles","ddn1": "","ddn2": "","hop": "CH Montperrin (Aix-en-Provence)","unite": "","telu": "","cmp": "CMP Villa Mélodie (Vitrolles)","adrc": "42 rue Camille Pelletan, 13127 Vitrolles","telc": "04 42 89 51 50","mailc": "","fiable": "Oui","com": "Secteur Berre-Vitrolles du CH Montperrin (projet d’établissement CHM 2023-2027); Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Éd. Toulouse ?","zone": "Marignane; Saint-Victoret; Gignac-la-Nerthe; Le Rove; Châteauneuf-les-Martigues; Ensuès-la-Redonne; Carry-le-Rouet; Sausset-les-Pins","zonet": "Marignane","ddn1": "","ddn2": "","hop": "CH Édouard Toulouse ?","unite": "","telu": "","cmp": "CMP Marignane","adrc": "2 rue du Stade, 13700 Marignane","telc": "04 42 77 84 01","mailc": "","fiable": "Non","com": "Marignane/Côte Bleue absents des secteurs officiels du CH Montperrin (CHM 2023-2027) — rattachement probable CH Édouard Toulouse, à confirmer. Aussi : CMP Eden - Addictologie, 1bis rue Saint-Exupéry, 04 42 09 96 09; Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Montperrin","zone": "Berre-l’Étang; Rognac; Velaux; La Fare-les-Oliviers; Coudoux; Ventabren","zonet": "Berre-l'Étang","ddn1": "","ddn2": "","hop": "CH Montperrin (Aix-en-Provence)","unite": "","telu": "","cmp": "CMP Les Tournesols (Berre)","adrc": "42 bis avenue Roger Salengro, 13130 Berre-l’Étang","telc": "04 42 85 35 86","mailc": "","fiable": "Oui","com": "Secteur Berre-Vitrolles du CH Montperrin (CHM 2023-2027). Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Martigues","zone": "Martigues; Saint-Mitre-les-Remparts","zonet": "Martigues","ddn1": "","ddn2": "","hop": "CH de Martigues","unite": "","telu": "","cmp": "CMP Martigues","adrc": "2 avenue des Esperelles, 13500 Martigues","telc": "04 42 43 21 80","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Martigues","zone": "Port-de-Bouc","zonet": "","ddn1": "","ddn2": "","hop": "CH de Martigues","unite": "","telu": "","cmp": "CMP Port-de-Bouc","adrc": "Rue de la République, 13110 Port-de-Bouc","telc": "04 42 06 67 24","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Martigues","zone": "Fos-sur-Mer","zonet": "","ddn1": "","ddn2": "","hop": "CH de Martigues","unite": "","telu": "","cmp": "CMP Fos-sur-Mer","adrc": "Place du Marché, 13270 Fos-sur-Mer","telc": "04 42 05 26 30","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Martigues","zone": "Istres; Entressen","zonet": "Istres","ddn1": "","ddn2": "","hop": "CH de Martigues","unite": "","telu": "","cmp": "C.E.C. Les Heures Claires (Istres)","adrc": "BP 70, 13800 Istres","telc": "04 42 56 68 71","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Montperrin","zone": "Miramas; Saint-Chamas; Cornillon-Confoux","zonet": "Miramas","ddn1": "","ddn2": "","hop": "CH Montperrin (Aix-en-Provence)","unite": "","telu": "","cmp": "CMP La Rose des Sables (Miramas)","adrc": "Rue de l'Abbé Couture, 13140 Miramas","telc": "04 90 50 00 09","mailc": "","fiable": "Oui","com": "Secteur Salon-Miramas du CH Montperrin (projet d’établissement CHM 2023-2027) — CORRECTION : pas CH de Martigues; Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Martigues","zone": "Port-Saint-Louis-du-Rhône","zonet": "","ddn1": "","ddn2": "","hop": "CH de Martigues","unite": "","telu": "","cmp": "CMP Port-Saint-Louis","adrc": "1 esplanade de la Paix, 13230 Port-Saint-Louis-du-Rhône","telc": "04 42 48 40 71","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Arles","zone": "Arles; Raphèle; Moulès; Mas-Thibert; Fontvieille; Les Baux-de-Provence; Maussane; Paradou; Mouriès","zonet": "Arles","ddn1": "","ddn2": "","hop": "CH d'Arles","unite": "","telu": "","cmp": "CMP Arles","adrc": "54 rue du Maréchal Galliéni, 13200 Arles","telc": "04 90 96 38 19","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Arles","zone": "Tarascon; Boulbon; Saint-Pierre-de-Mézoargues","zonet": "Tarascon","ddn1": "","ddn2": "","hop": "CH d'Arles","unite": "","telu": "","cmp": "CMP Tarascon","adrc": "Boulevard Gustave Desplaces, 13150 Tarascon","telc": "04 90 91 53 58","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Arles","zone": "Saint-Martin-de-Crau","zonet": "","ddn1": "","ddn2": "","hop": "CH d'Arles","unite": "","telu": "","cmp": "CMP Résidence Jean Moulin","adrc": "Rue des Romarins, 13310 Saint-Martin-de-Crau","telc": "04 90 47 20 40","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Arles","zone": "Salin-de-Giraud; Camargue sud","zonet": "Salin-de-Giraud","ddn1": "","ddn2": "","hop": "CH d'Arles","unite": "","telu": "","cmp": "Antenne du CMP d'Arles (Salin)","adrc": "3 rue des Salicornes, 13129 Salin-de-Giraud","telc": "04 42 48 81 05","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "13 - Éd. Toulouse","zone": "Septèmes-les-Vallons; Les Pennes-Mirabeau; La Gavotte","zonet": "Les Pennes-Mirabeau","ddn1": "","ddn2": "","hop": "CH Édouard Toulouse","unite": "","telu": "","cmp": "CMP Antenne des Pennes-Mirabeau","adrc": "64 Vieille Route de la Gavotte, 13170 Les Pennes-Mirabeau","telc": "04 91 09 09 64","mailc": "","fiable": "Oui","com": "Septèmes : CMP selon secteur É. Toulouse (nord Marseille); Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet","zone": "Avignon","zonet": "","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP Avignon","adrc": "1 boulevard Anatole France, 84000 Avignon","telc": "04 90 03 89 35","mailc": "","fiable": "Oui","com": "Autres CMP adultes à Avignon : Saint-Lazare (14 av de la Synagogue, 04 90 03 89 10), CASPER-Erasmus (2 rue Le Titien, 04 90 03 89 21) — répartition intra-Avignon à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet","zone": "Montfavet","zonet": "","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP Montfavet","adrc": "164 boulevard de la Fraternité, 84140 Montfavet","telc": "04 90 03 89 25","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet","zone": "Sorgues; Le Pontet; Vedène; Bédarrides; Châteauneuf-du-Pape; Entraigues-sur-la-Sorgue","zonet": "Sorgues","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP Parc Gentilly (Sorgues)","adrc": "59 rue de la Coquille, 84700 Sorgues","telc": "04 32 40 39 30","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet","zone": "Carpentras; Monteux; Pernes-les-Fontaines; Mazan; Sarrians; Aubignan; Caromb; Bédoin; Malaucène","zonet": "Carpentras","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP Carpentras","adrc": "232 avenue du Mont Ventoux, 84200 Carpentras","telc": "04 90 03 89 60","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet","zone": "Cavaillon; Cheval-Blanc; Robion; Maubec; Oppède; Mérindol; Lauris; Lourmarin","zonet": "Cavaillon","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP Cavaillon","adrc": "34 rue du 8 mai 1945, 84300 Cavaillon","telc": "04 90 03 89 06","mailc": "","fiable": "Oui","com": "Même adresse : C.A.V.A.P., accueil 8h-20h (9h-19h le WE), 04 90 03 89 06. Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet","zone": "L'Isle-sur-la-Sorgue; Le Thor; Châteauneuf-de-Gadagne; Fontaine-de-Vaucluse; Saumane","zonet": "L'Isle-sur-la-Sorgue","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP Les Capucins (L'Isle-sur-la-Sorgue)","adrc": "79 allée des Ormaux, 84800 L'Isle-sur-la-Sorgue","telc": "04 90 03 88 28","mailc": "","fiable": "Oui","com": "Même adresse : C.A.P.P.S.I., accueil 8h-20h (9h-19h le WE), 04 90 03 89 03; Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet","zone": "Apt; Gargas; Roussillon; Gordes; Bonnieux; Ménerbes; Lacoste; Saint-Saturnin-lès-Apt; Céreste","zonet": "Apt","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP Apt","adrc": "86 avenue Philippe de Girard, 84400 Apt","telc": "04 90 03 89 00","mailc": "","fiable": "Oui","com": "Même adresse : C.A.P.P.A., accueil 8h-20h (9h-19h le WE), 04 90 03 89 00. Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet","zone": "Orange; Courthézon; Jonquières; Camaret-sur-Aigues; Sérignan-du-Comtat; Piolenc; Caderousse","zonet": "Orange","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP CH d'Orange","adrc": "CH d’Orange, 84100 Orange","telc": "04 90 03 89 72","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet","zone": "Bollène; Mondragon; Lapalud; Lamotte-du-Rhône; Sainte-Cécile-les-Vignes","zonet": "Bollène","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP l'Albizzia (Bollène)","adrc": "68 avenue Saint-Exupéry, 84500 Bollène","telc": "04 90 03 89 70","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet","zone": "Vaison-la-Romaine; Sablet; Séguret; Entrechaux; Puyméras","zonet": "Vaison-la-Romaine","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP Vaison-la-Romaine","adrc": "1 rue du Ventoux, 84110 Vaison-la-Romaine","telc": "04 90 03 89 76","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet","zone": "Valréas; Grillon; Richerenches; Visan","zonet": "Valréas","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP Valréas","adrc": "2 rue Saint-Augustin, 84600 Valréas","telc": "04 90 03 89 78","mailc": "","fiable": "Oui","com": "Enclave des Papes; Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet (13)","zone": "Châteaurenard; Noves; Barbentane; Rognonas; Graveson; Maillane; Eyragues; Cabannes; Saint-Andiol","zonet": "Châteaurenard","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP Châteaurenard","adrc": "35 avenue J. Trouillet, 13160 Châteaurenard","telc": "04 90 03 89 30","mailc": "","fiable": "Oui","com": "Nord 13 rattaché au CH de Montfavet (84). Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet (13)","zone": "Saint-Rémy-de-Provence; Eygalières; Saint-Étienne-du-Grès; Mas-Blanc-des-Alpilles; Mollégès","zonet": "Saint-Rémy-de-Provence","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP Saint-Rémy-de-Provence","adrc": "2 ter avenue Pelissier, 13210 Saint-Rémy-de-Provence","telc": "04 90 03 89 33","mailc": "","fiable": "Oui","com": "Nord 13 rattaché au CH de Montfavet (84); Source ARS PACA 2017"},{"type": "Zone","secteur": "84 - Montfavet (13)","zone": "Sénas; Orgon; Plan-d’Orgon; Mallemort; Charleval; Lamanon","zonet": "Sénas","ddn1": "","ddn2": "","hop": "CH de Montfavet (Avignon)","unite": "","telu": "","cmp": "CMP Sénas","adrc": "19 avenue Gabriel Péri, 13560 Sénas","telc": "04 90 03 92 91","mailc": "","fiable": "Oui","com": "Nord 13 rattaché au CH de Montfavet (84). Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "04 - Digne","zone": "Digne-les-Bains; La Javie; Thoard; Barrême; Mézel","zonet": "Digne-les-Bains","ddn1": "","ddn2": "","hop": "CH de Digne-les-Bains","unite": "","telu": "","cmp": "CMP Digne-les-Bains","adrc": "15 rue Alphonse Richard, 04000 Digne-les-Bains","telc": "04 92 30 13 80","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "04 - Digne","zone": "Sisteron; Volonne; Salignac; Mison","zonet": "Sisteron","ddn1": "","ddn2": "","hop": "CH de Digne-les-Bains","unite": "","telu": "","cmp": "CMP Résidence de la Citadelle (Sisteron)","adrc": "1 avenue de la Libération, 04200 Sisteron","telc": "04 92 61 35 72","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "04 - Digne","zone": "Château-Arnoux-Saint-Auban; Les Mées; Peyruis; Malijai","zonet": "Château-Arnoux-Saint-Auban","ddn1": "","ddn2": "","hop": "CH de Digne-les-Bains","unite": "","telu": "","cmp": "CMP Saint-Auban","adrc": "Cours Pechiney, 04160 Saint-Auban","telc": "04 92 64 38 69","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "04 - Digne","zone": "Barcelonnette; vallée de l’Ubaye; Jausiers; Le Lauzet","zonet": "Barcelonnette","ddn1": "","ddn2": "","hop": "CH de Digne-les-Bains","unite": "","telu": "","cmp": "Consultation Hôpital local de Barcelonnette","adrc": "8 rue Maurin, 04400 Barcelonnette","telc": "04 92 81 41 39","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "04 - Digne","zone": "Seyne-les-Alpes; vallée de la Blanche","zonet": "Seyne-les-Alpes","ddn1": "","ddn2": "","hop": "CH de Digne-les-Bains","unite": "","telu": "","cmp": "CMS Seyne-les-Alpes","adrc": "04140 Seyne-les-Alpes","telc": "04 92 35 01 02","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "04 - Digne","zone": "Saint-André-les-Alpes; Castellane; Colmars; Allos; Beauvezer","zonet": "Saint-André-les-Alpes","ddn1": "","ddn2": "","hop": "CH de Digne-les-Bains","unite": "","telu": "","cmp": "CMP Saint-André-les-Alpes","adrc": "Place de Verdun, 04170 Saint-André-les-Alpes","telc": "04 92 89 10 23","mailc": "","fiable": "Oui","com": "Attention : le CMS de Castellane (04 92 83 77 19) est INFANTO-JUVÉNILE — adultes orientés vers St-André (à vérifier); Source ARS PACA 2017"},{"type": "Zone","secteur": "04 - Digne","zone": "Annot; Le Fugeret; Méailles","zonet": "Annot","ddn1": "","ddn2": "","hop": "CH de Digne-les-Bains","unite": "","telu": "","cmp": "CMP Immeuble Coulet (Annot)","adrc": "Rue Basse, 04240 Annot","telc": "04 92 83 25 80","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "04 - ? Ste-Marie","zone": "Entrevaux; Val-de-Chalvagne","zonet": "Entrevaux","ddn1": "","ddn2": "","hop": "CHS Sainte-Marie (Nice) ?","unite": "","telu": "","cmp": "CMP Entrevaux","adrc": "Place Charles Panier, 04320 Entrevaux","telc": "04 93 05 43 67","mailc": "","fiable": "Non","com": "Numéro niçois (04 93) : secteur probablement rattaché au CHS Sainte-Marie via Puget-Théniers — à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "04 - Digne","zone": "Manosque; Sainte-Tulle; Pierrevert; Volx; Villeneuve; Corbières","zonet": "Manosque","ddn1": "","ddn2": "","hop": "CH de Digne-les-Bains","unite": "","telu": "","cmp": "CMP Immeuble Le Régent (Manosque)","adrc": "Avenue Pompidou, 04100 Manosque","telc": "04 92 30 13 90","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "04 - Digne","zone": "Forcalquier; Saint-Étienne-les-Orgues; Mane; Banon","zonet": "Forcalquier","ddn1": "","ddn2": "","hop": "CH de Digne-les-Bains","unite": "","telu": "","cmp": "CMP Forcalquier","adrc": "1 avenue du Docteur Casimir Caire, 04300 Forcalquier","telc": "04 92 30 13 86","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "04 - Digne","zone": "Oraison; La Brillanne; Le Castellet","zonet": "Oraison","ddn1": "","ddn2": "","hop": "CH de Digne-les-Bains","unite": "","telu": "","cmp": "CMP Oraison","adrc": "Rue Elie Louis Julien, 04700 Oraison","telc": "04 92 30 13 98","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "04 - Digne","zone": "Gréoux-les-Bains; Vinon-sur-Verdon; Esparron","zonet": "Gréoux-les-Bains","ddn1": "","ddn2": "","hop": "CH de Digne-les-Bains","unite": "","telu": "","cmp": "Antenne CCAS Gréoux-les-Bains","adrc": "Place de l’Hôtel de Ville, 04800 Gréoux-les-Bains","telc": "04 92 78 00 25","mailc": "","fiable": "Oui","com": "Vinon-sur-Verdon (83) : rattachement à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "04 - Digne","zone": "Riez; Valensole; Moustiers-Sainte-Marie; Quinson","zonet": "Riez","ddn1": "","ddn2": "","hop": "CH de Digne-les-Bains","unite": "","telu": "","cmp": "Consultation Hôpital local de Riez","adrc": "Place Elie Louis Julien, 04500 Riez","telc": "04 92 70 10 41","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "05 - Buëch-Durance","zone": "Gap; Tallard; La Bâtie-Neuve; Chorges; La Saulce; Saint-Bonnet-en-Champsaur; Orcières; Ancelle","zonet": "Gap","ddn1": "","ddn2": "","hop": "CH Buëch-Durance (Laragne-Montéglin)","unite": "","telu": "","cmp": "CSM Hélène Chaigneau (Gap)","adrc": "33 avenue du Commandant Dumont, 05000 Gap","telc": "04 92 51 58 61","mailc": "","fiable": "Oui","com": "Aussi à Gap : CAC – Immeuble Le Relais, 5 rue du Capitaine de Bresson, 04 92 56 05 12. Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "05 - Buëch-Durance","zone": "Briançon; Serre-Chevalier; Montgenèvre; L’Argentière-la-Bessée; Vallouise; Névache","zonet": "Briançon","ddn1": "","ddn2": "","hop": "CH Buëch-Durance (Laragne-Montéglin)","unite": "","telu": "","cmp": "CMP L'Escale (Briançon)","adrc": "28 avenue René Froger, 05100 Briançon","telc": "04 92 20 24 24","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "05 - Buëch-Durance","zone": "Embrun; Guillestre; Savines-le-Lac; Queyras; Saint-Véran; Aiguilles","zonet": "Embrun","ddn1": "","ddn2": "","hop": "CH Buëch-Durance (Laragne-Montéglin)","unite": "","telu": "","cmp": "CMP Le Petit Nice (Embrun)","adrc": "58 rue de la Liberté, 05200 Embrun","telc": "04 92 43 51 38","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "05 - Buëch-Durance","zone": "Veynes; Dévoluy; Aspres-sur-Buëch","zonet": "Veynes","ddn1": "","ddn2": "","hop": "CH Buëch-Durance (Laragne-Montéglin)","unite": "","telu": "","cmp": "CMP Veynes","adrc": "2 bis rue Picasso, 05400 Veynes","telc": "04 92 20 14 29","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "05 - Buëch-Durance","zone": "Laragne-Montéglin; Ribiers; Val Buëch-Méouge; Orpierre; Garde-Colombe","zonet": "Laragne-Montéglin","ddn1": "","ddn2": "","hop": "CH Buëch-Durance (Laragne-Montéglin)","unite": "","telu": "","cmp": "CMP Laragne-Montéglin","adrc": "Route d’Arzeliers, 05300 Laragne-Montéglin","telc": "04 92 67 06 04","mailc": "","fiable": "Oui","com": "Aussi : CMP Le Club, rue Arthur Audibert, 04 92 65 10 08; Source ARS PACA 2017"},{"type": "Zone","secteur": "05 - Buëch-Durance","zone": "Serres; Rosans","zonet": "Serres","ddn1": "","ddn2": "","hop": "CH Buëch-Durance (Laragne-Montéglin)","unite": "","telu": "","cmp": "Antenne Mairie de Serres","adrc": "05700 Serres","telc": "04 92 67 12 51","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - CH Grasse","zone": "Grasse; Peymeinade; Saint-Vallier-de-Thiey; Saint-Cézaire-sur-Siagne; Cabris; Le Tignet; Spéracèdes; Mouans-Sartoux; Pégomas; Auribeau-sur-Siagne; La Roquette-sur-Siagne","zonet": "Grasse","ddn1": "","ddn2": "","hop": "CH de Grasse","unite": "","telu": "","cmp": "CMP Hôpital du Petit Paris (Grasse)","adrc": "78 boulevard Victor Hugo, 06130 Grasse","telc": "04 93 09 55 45","mailc": "","fiable": "Oui","com": "Liste de communes indicative (carte ARS : Grasse + arrière-pays grassois); Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - CH Cannes","zone": "Cannes; Le Cannet; Mougins","zonet": "Cannes","ddn1": "","ddn2": "","hop": "CH de Cannes (Simone Veil)","unite": "","telu": "","cmp": "CMP Isola Bella (Cannes)","adrc": "27 avenue Isola Bella, 06400 Cannes","telc": "04 93 69 75 15","mailc": "","fiable": "Oui","com": "Mougins : rattachement Cannes/Grasse à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - CH Cannes","zone": "Cannes-la-Bocca; Mandelieu-la-Napoule; Théoule-sur-Mer","zonet": "Mandelieu-la-Napoule","ddn1": "","ddn2": "","hop": "CH de Cannes (Simone Veil)","unite": "","telu": "","cmp": "CMP La Bocca","adrc": "17 rue Marco Del Ponte, 06150 Cannes-la-Bocca","telc": "04 93 69 79 45","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - CH Antibes","zone": "Antibes","zonet": "Antibes","ddn1": "","ddn2": "","hop": "CH d'Antibes Juan-les-Pins","unite": "","telu": "","cmp": "CMP Le Mirabeau (Antibes)","adrc": "3 avenue Mirabeau, 06600 Antibes","telc": "04 93 34 40 27","mailc": "","fiable": "Oui","com": "Aussi à Antibes : CMP Reybaud, 14 avenue Reybaud, 04 93 33 26 82; Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - CH Antibes","zone": "Juan-les-Pins","zonet": "Antibes","ddn1": "","ddn2": "","hop": "CH d'Antibes Juan-les-Pins","unite": "","telu": "","cmp": "Antenne CMP Juan-les-Pins","adrc": "Rue du docteur Hochet, 06160 Juan-les-Pins","telc": "04 93 61 09 06","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - CH Antibes","zone": "Vallauris; Golfe-Juan","zonet": "Vallauris","ddn1": "","ddn2": "","hop": "CH d'Antibes Juan-les-Pins","unite": "","telu": "","cmp": "Antenne CMP Vallauris","adrc": "Boulevard des deux Vallons, 06220 Vallauris","telc": "04 92 90 75 70","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - CH Antibes","zone": "Valbonne; Sophia-Antipolis; Biot; Roquefort-les-Pins; Opio; Châteauneuf-Grasse; Le Rouret","zonet": "Valbonne","ddn1": "","ddn2": "","hop": "CH d'Antibes Juan-les-Pins","unite": "","telu": "","cmp": "Antenne CMP Garbejaire (Valbonne)","adrc": "Place Méjane, 06560 Valbonne","telc": "04 92 90 19 00","mailc": "","fiable": "Oui","com": "Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - CH Antibes","zone": "Vence; Saint-Paul-de-Vence; La Colle-sur-Loup; Tourrettes-sur-Loup","zonet": "Vence","ddn1": "","ddn2": "","hop": "CH d'Antibes Juan-les-Pins","unite": "","telu": "","cmp": "Antenne CMP Le Riou (Vence)","adrc": "9 bis avenue de la Résistance, 06140 Vence","telc": "04 93 24 24 80","mailc": "","fiable": "Oui","com": "CORRECTION : Vence dépend du CH d’Antibes (inventaire ARS), pas de Sainte-Marie; Source ARS PACA 2017"},{"type": "Zone","secteur": "Nice centre","zone": "06000","zonet": "Nice","ddn1": "","ddn2": "","hop": "CHS Sainte-Marie (Nice)","unite": "","telu": "","cmp": "CMP Notre-Dame","adrc": "26 avenue Notre Dame, 06000 Nice","telc": "04 93 13 71 01","mailc": "","fiable": "Oui","com": "ATTENTION : quartiers Madeleine, Gambetta, Beaumettes → CHU depuis le 02/07/2018 (ARS). Urgences psy Nice : CAP Pasteur 2, 04 92 03 33 58/59. Coordonnées CMP confirmées AHSM 01/2025; Source ARS PACA 2017"},{"type": "Zone","secteur": "Nice nord","zone": "06100","zonet": "Nice","ddn1": "","ddn2": "","hop": "CHS Sainte-Marie (Nice)","unite": "","telu": "","cmp": "CMP Bellagio","adrc": "18 avenue Cyrille Besset, 06100 Nice","telc": "04 93 13 56 10","mailc": "","fiable": "Oui","com": "Coordonnées confirmées AHSM 01/2025 (CP corrigé : 06100, pas 06000); Source ARS PACA 2017"},{"type": "Zone","secteur": "Nice ouest","zone": "06200","zonet": "Nice","ddn1": "","ddn2": "","hop": "CHU de Nice","unite": "","telu": "","cmp": "CMP du CHU","adrc": "56 bis avenue de la Lanterne, 06200 Nice","telc": "04 92 03 20 60","mailc": "","fiable": "Oui","com": "Zone CHU étendue le 02/07/2018 aux quartiers Madeleine, Gambetta, Beaumettes, Ventabrun, Saint-Pierre-de-Féric (source ARS 2018). Urgences : CAP Pasteur 2, 04 92 03 33 58/59; Source ARS PACA 2017"},{"type": "Zone","secteur": "Nice est","zone": "06300","zonet": "Nice","ddn1": "","ddn2": "","hop": "CHS Sainte-Marie (Nice)","unite": "","telu": "","cmp": "CMP Le Rembrandt","adrc": "56 boulevard du Général Delfino, 06300 Nice","telc": "04 93 13 71 06","mailc": "","fiable": "Oui","com": "Coordonnées confirmées AHSM 01/2025 (CP corrigé : 06300, pas 06000); Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - Ste-Marie","zone": "Saint-André-de-la-Roche; Falicon; La Trinité; Drap; Cantaron; Contes; L’Escarène; Peillon; Peille; Blausasc; Coaraze; Berre-les-Alpes; Bendejun; Châteauneuf-Villevieille; Lucéram; Touët-de-l’Escarène","zonet": "Contes","ddn1": "","ddn2": "","hop": "CHS Sainte-Marie (Nice)","unite": "","telu": "","cmp": "CMP Le Rembrandt (Nice est)","adrc": "56 boulevard du Général Delfino, 06300 Nice","telc": "04 93 13 71 06","mailc": "","fiable": "Non","com": "Pays des Paillons : rattaché à Sainte-Marie (communes desservies, AHSM 2025) — CMP de référence exact à confirmer; Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - Ste-Marie","zone": "Cagnes-sur-Mer; Saint-Laurent-du-Var; Villeneuve-Loubet; La Gaude; Saint-Jeannet","zonet": "Cagnes-sur-Mer","ddn1": "","ddn2": "","hop": "CHS Sainte-Marie (Nice)","unite": "","telu": "","cmp": "CMP Cagnes-sur-Mer","adrc": "65 avenue de la Gare, 06800 Cagnes-sur-Mer","telc": "04 93 13 71 10","mailc": "","fiable": "Oui","com": "Coordonnées confirmées AHSM 01/2025. Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - Ste-Marie","zone": "Carros; Gattières; Le Broc; Gilette; Saint-Martin-du-Var; Levens; Castagniers; Colomars; Aspremont; Tourrette-Levens; Saint-Blaise; La Roquette-sur-Var","zonet": "Carros","ddn1": "","ddn2": "","hop": "CHS Sainte-Marie (Nice)","unite": "","telu": "","cmp": "Antenne CMP Carros","adrc": "Rue du Roure, 06510 Carros","telc": "04 93 13 58 62","mailc": "","fiable": "Oui","com": "Antenne de Cagnes-sur-Mer, confirmée AHSM 01/2025. Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - Ste-Marie","zone": "Menton; Roquebrune-Cap-Martin; Sainte-Agnès; Castellar; Gorbio; Beausoleil; La Turbie; Cap-d’Ail; Èze; Sospel; Moulinet; Castillon; Breil-sur-Roya; Saorge; Fontan; Tende; La Brigue","zonet": "Menton","ddn1": "","ddn2": "","hop": "CHS Sainte-Marie (Nice)","unite": "","telu": "","cmp": "CMP Saint-Michel (Menton)","adrc": "16 rue Prato, 06500 Menton","telc": "04 93 13 71 05","mailc": "","fiable": "Oui","com": "Confirmé AHSM 01/2025. Les antennes locales 2017 (Beausoleil 04 93 78 08 07, Sospel, Breil, Saorge, Tende, Palmosa Menton) ne sont plus listées par Sainte-Marie en 2025 — existence à vérifier localement; Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - Ste-Marie","zone": "Saint-Sauveur-sur-Tinée; Saint-Étienne-de-Tinée; Isola; Auron; Valdeblore; Rimplas; Clans; Marie; La Tour; Ilonse; Roure; Roubion; Beuil","zonet": "Saint-Sauveur-sur-Tinée","ddn1": "","ddn2": "","hop": "CHS Sainte-Marie (Nice)","unite": "","telu": "","cmp": "Antenne CMP Saint-Sauveur-sur-Tinée","adrc": "06420 Saint-Sauveur-sur-Tinée","telc": "","mailc": "","fiable": "Non","com": "Antenne confirmée AHSM 01/2025 mais coordonnées non publiées — ancien CMP hôpital de St-Étienne-de-Tinée (04 93 23 28 28, ARS 2017) à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - Ste-Marie","zone": "Lantosque; Roquebilière; Belvédère; Saint-Martin-Vésubie; La Bollène-Vésubie; Venanson; Utelle; Duranus","zonet": "Roquebilière","ddn1": "","ddn2": "","hop": "CHS Sainte-Marie (Nice)","unite": "","telu": "","cmp": "CMP de rattachement à confirmer (Vésubie)","adrc": "","telc": "","mailc": "","fiable": "Non","com": "Vallée de la Vésubie desservie par Sainte-Marie (AHSM 2025) — antennes 2017 : Lantosque 04 93 03 00 62, Roquebilière (Centre Jean Chanton) 04 93 03 43 64, non listées en 2025; Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - Ste-Marie","zone": "Puget-Théniers; Villars-sur-Var; Touët-sur-Var; Guillaumes; Entraunes; Ascros; Rigaud; La Penne; Malaussène; Massoins; Tournefort; Thiéry; Pierlas; Lieuche; Auvare; Puget-Rostang; Saint-Antonin; Sigale; Roquesteron; Cuébris; Pierrefeu (06); Toudon; Revest-les-Roches; Tourette-du-Château; Bonson","zonet": "Puget-Théniers","ddn1": "","ddn2": "","hop": "CHS Sainte-Marie (Nice)","unite": "","telu": "","cmp": "Antenne CMP Puget-Théniers","adrc": "Place Général de Gaulle, 06260 Puget-Théniers","telc": "04 93 05 00 99","mailc": "","fiable": "Oui","com": "Confirmée AHSM 01/2025 (+ antenne « Villaret », probablement Villars-sur-Var, à vérifier). Haut-pays du Var — liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "06 - Ste-Marie","zone": "Beaulieu-sur-Mer; Saint-Jean-Cap-Ferrat; Villefranche-sur-Mer","zonet": "Villefranche-sur-Mer","ddn1": "","ddn2": "","hop": "CHS Sainte-Marie (Nice)","unite": "","telu": "","cmp": "CMP de rattachement à confirmer (corniches)","adrc": "26 avenue Notre Dame, 06000 Nice","telc": "04 93 13 71 01","mailc": "","fiable": "Non","com": "Communes desservies par Sainte-Marie (AHSM 2025) — CMP de référence (Nice ou Menton) à confirmer; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Toulon","zone": "Toulon; Le Revest-les-Eaux","zonet": "Toulon","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs Toulon/La Seyne (ex-CHITS)","unite": "","telu": "","cmp": "CMP Toulon (secteurs G01-G02-G03)","adrc": "7 rue Revel, 83000 Toulon","telc": "04 94 64 58 66 / 04 94 64 58 44 / 04 94 64 58 55","mailc": "","fiable": "Oui","com": "Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier. Urgences psychiatriques Ste-Musse : 04 94 14 51 60; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Toulon","zone": "La Seyne-sur-Mer; Six-Fours-les-Plages; Saint-Mandrier; Ollioules","zonet": "La Seyne-sur-Mer","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs Toulon/La Seyne (ex-CHITS)","unite": "","telu": "","cmp": "CMP Pavillon Arthur Rimbaud (La Seyne)","adrc": "Avenue Jules Renard, 83500 La Seyne-sur-Mer","telc": "04 94 11 30 85","mailc": "","fiable": "Oui","com": "Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier. Liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Toulon","zone": "Sanary-sur-Mer; Bandol; Le Beausset?; Saint-Cyr? (voir 13G10 Valvert)","zonet": "Sanary-sur-Mer","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs Toulon/La Seyne (ex-CHITS)","unite": "","telu": "","cmp": "Antenne CMP Sanary-sur-Mer","adrc": "69 avenue de la Résistance, 83110 Sanary-sur-Mer","telc": "04 94 11 30 85","mailc": "","fiable": "Non","com": "St-Cyr/La Cadière : rattachés au CH Valvert 13G10 selon tes documents — frontière 83/13 à vérifier. Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Pierrefeu","zone": "La Garde; Le Pradet; La Valette-du-Var","zonet": "La Garde","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs ex-CH Henri Guérin (Pierrefeu)","unite": "","telu": "","cmp": "CMP Forsythia (La Garde)","adrc": "16 place Antoine Tomasini, 83130 La Garde","telc": "04 94 02 72 41","mailc": "","fiable": "Oui","com": "Aussi : CMP Regain, Les Nagas, 969 av du Commandant Houot, 04 94 27 10 10. Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Pierrefeu","zone": "La Crau","zonet": "","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs ex-CH Henri Guérin (Pierrefeu)","unite": "","telu": "","cmp": "Antenne Bureau Villa File (La Crau)","adrc": "Place Castellin, 83260 La Crau","telc": "","mailc": "","fiable": "Non","com": "Téléphone non renseigné par l’ARS. Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Pierrefeu","zone": "La Farlède","zonet": "","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs ex-CH Henri Guérin (Pierrefeu)","unite": "","telu": "","cmp": "Antenne Hôtel de Ville (La Farlède)","adrc": "Place de la Liberté, 83210 La Farlède","telc": "04 94 27 85 85","mailc": "","fiable": "Oui","com": "Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Pierrefeu","zone": "Carqueiranne","zonet": "","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs ex-CH Henri Guérin (Pierrefeu)","unite": "","telu": "","cmp": "Antenne CCAS Carqueiranne","adrc": "Avenue Jean Jaurès, 83320 Carqueiranne","telc": "","mailc": "","fiable": "Non","com": "Téléphone non renseigné par l’ARS. Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Pierrefeu","zone": "Hyères; La Londe-les-Maures; Giens; Porquerolles","zonet": "Hyères","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs ex-CH Henri Guérin (Pierrefeu)","unite": "","telu": "","cmp": "CMP Hyères","adrc": "9 avenue Riondet, 83400 Hyères","telc": "04 94 12 19 00","mailc": "","fiable": "Oui","com": "Aussi : antenne Foyer Massillon (Hyères). CAP CH Hyères : 04 94 00 27 04. Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Pierrefeu","zone": "Le Lavandou; Bormes-les-Mimosas; Rayol-Canadel","zonet": "Le Lavandou","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs ex-CH Henri Guérin (Pierrefeu)","unite": "","telu": "","cmp": "Antenne Villa Rossi - CCAS (Le Lavandou)","adrc": "Rue de la Rigourette, 83980 Le Lavandou","telc": "04 94 22 76 60","mailc": "","fiable": "Oui","com": "Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Pierrefeu","zone": "Cuers; Puget-Ville; Carnoules; Pierrefeu-du-Var; Collobrières","zonet": "Cuers","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs ex-CH Henri Guérin (Pierrefeu)","unite": "","telu": "","cmp": "CMP Adultes Cuers","adrc": "8 boulevard Gambetta, 83390 Cuers","telc": "04 94 13 50 91","mailc": "","fiable": "Oui","com": "Aussi : CMP sur site de Pierrefeu, Quartier Barnencq, 04 94 33 18 27. Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Pierrefeu","zone": "Solliès-Pont; Solliès-Ville; Belgentier","zonet": "Solliès-Pont","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs ex-CH Henri Guérin (Pierrefeu)","unite": "","telu": "","cmp": "CMP République (Solliès-Pont)","adrc": "6/8 avenue de la République, 83210 Solliès-Pont","telc": "04 94 13 50 81","mailc": "","fiable": "Oui","com": "Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Pierrefeu","zone": "Solliès-Toucas","zonet": "","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs ex-CH Henri Guérin (Pierrefeu)","unite": "","telu": "","cmp": "Antenne Hôtel de Ville (Solliès-Toucas)","adrc": "Place Balestro, 83210 Solliès-Toucas","telc": "04 94 28 90 47","mailc": "","fiable": "Oui","com": "Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Pierrefeu","zone": "Brignoles; Le Val; La Celle; Camps-la-Source; Vins-sur-Caramy; Garéoult; La Roquebrussanne; Forcalqueiret","zonet": "Brignoles","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs ex-CH Henri Guérin (Pierrefeu)","unite": "","telu": "","cmp": "CMP Chêne (Brignoles)","adrc": "12 boulevard Saint-Louis, 83170 Brignoles","telc": "04 94 69 33 46","mailc": "","fiable": "Oui","com": "CAP CH Brignoles : 04 94 72 66 00. Liste de communes indicative. Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Pierrefeu","zone": "Carcès; Cotignac; Montfort-sur-Argens; Correns; Entrecasteaux","zonet": "Carcès","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs ex-CH Henri Guérin (Pierrefeu)","unite": "","telu": "","cmp": "Antenne Maison de santé pluridisciplinaire (Carcès)","adrc": "Quartier Le Derrot, 83570 Carcès","telc": "","mailc": "","fiable": "Non","com": "Téléphone non renseigné par l’ARS. Liste de communes indicative. Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - EPSY Pierrefeu","zone": "Saint-Maximin-la-Sainte-Baume; Tourves; Rougiers; Nans-les-Pins; Pourrières; Pourcieux; Ollières; Bras","zonet": "Saint-Maximin-la-Sainte-Baume","ddn1": "","ddn2": "","hop": "EPSY VAR — secteurs ex-CH Henri Guérin (Pierrefeu)","unite": "","telu": "","cmp": "CMP Adultes Saint-Maximin","adrc": "105 chemin du Chevalier, 83470 Saint-Maximin","telc": "04 94 37 11 17","mailc": "","fiable": "Oui","com": "Liste de communes indicative. Depuis 2023 la psychiatrie CHITS + CH H. Guérin est regroupée dans EPSY VAR — coordonnées ARS 2017 à vérifier; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - CHI Fréjus","zone": "Fréjus; Saint-Raphaël","zonet": "Fréjus","ddn1": "","ddn2": "","hop": "CHI Fréjus/Saint-Raphaël","unite": "","telu": "","cmp": "CMP Villa Renata (Fréjus)","adrc": "1591 avenue de Lattre de Tassigny, 83600 Fréjus","telc": "04 94 51 81 61","mailc": "","fiable": "Oui","com": "Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - CHI Fréjus","zone": "Puget-sur-Argens; Roquebrune-sur-Argens; Les Adrets-de-l’Estérel","zonet": "Puget-sur-Argens","ddn1": "","ddn2": "","hop": "CHI Fréjus/Saint-Raphaël","unite": "","telu": "","cmp": "Antenne CCAS Puget-sur-Argens","adrc": "112 avenue Victor Hugo, 83480 Puget-sur-Argens","telc": "06 87 32 55 64 (portable infirmier)","mailc": "","fiable": "Oui","com": "Ouvert lundi, mercredi, vendredi 9h-12h (ARS 2017); Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - CHI Fréjus","zone": "Sainte-Maxime; Saint-Tropez; Cogolin; Grimaud; Gassin; Ramatuelle; La Croix-Valmer; Cavalaire; Le Plan-de-la-Tour; Sainte-Maxime golfe","zonet": "Sainte-Maxime","ddn1": "","ddn2": "","hop": "CHI Fréjus/Saint-Raphaël","unite": "","telu": "","cmp": "CMP Sainte-Maxime","adrc": "42 avenue Saint-Exupéry, 83120 Sainte-Maxime","telc": "04 94 55 21 34","mailc": "","fiable": "Oui","com": "Golfe de Saint-Tropez — liste de communes indicative; Source ARS PACA 2017"},{"type": "Zone","secteur": "83 - Dracénie","zone": "Draguignan; Trans-en-Provence; Lorgues; Flayosc; Vidauban; Les Arcs; Le Muy; Salernes; Aups; Villecroze; Tourtour; Fayence; Montauroux; Callian; Bargemon; Comps-sur-Artuby","zonet": "Draguignan","ddn1": "","ddn2": "","hop": "CH de la Dracénie (Draguignan)","unite": "","telu": "","cmp": "CMP Le Malmont (Draguignan)","adrc": "Boulevard Joseph Collomp, 83300 Draguignan","telc": "04 94 60 56 80","mailc": "","fiable": "Oui","com": "Dracénie + haut Var + pays de Fayence (carte ARS) — liste de communes indicative. Urgences : 04 94 60 56 99; Source ARS PACA 2017"}];
+let SECTO_ROWS = SECTO_DEFAULT.slice();
+
+async function loadSecto(){
+  if(!CSV_SECTO) return;
+  try{
+    const r = await fetch(CSV_SECTO);
+    if(!r.ok) return;
+    const rows = parseCSV(await r.text());
+    const g=(o,k)=>{ for(const key of Object.keys(o)){ if(key.trim().toLowerCase().startsWith(k)) return clean(o[key]); } return ''; };
+    const parsed = rows.map(o=>({
+      type:g(o,'type'), secteur:g(o,'secteur'),
+      zone:(function(){ for(const key of Object.keys(o)){ const k=key.trim().toLowerCase(); if(k.startsWith('zone')&&!k.includes('trac')) return clean(o[key]); } return ''; })(),
+      zonet:(function(){ for(const key of Object.keys(o)){ const k=key.trim().toLowerCase(); if(k.startsWith('zone')&&k.includes('trac')) return clean(o[key]); } return ''; })(),
+      adrc:g(o,'adresse cmp'),
+      ddn1:g(o,'ddn debut')||g(o,'ddn début'), ddn2:g(o,'ddn fin'),
+      hop:g(o,'hopital')||g(o,'hôpital'), unite:g(o,'unite')||g(o,'unité'), telu:g(o,'tel unite')||g(o,'tel unité'),
+      cmp:g(o,'cmp'), telc:g(o,'tel cmp'), mailc:g(o,'mail cmp'),
+      fiable:g(o,'fiable'), com:g(o,'commentaire'),
+    })).filter(r=>r.type&&(r.type.toLowerCase()==='ddn'||r.type.toLowerCase()==='zone'));
+    if(parsed.length) SECTO_ROWS = parsed;
+  }catch(e){ console.warn('Sectorisation : lecture Sheet échouée, données intégrées utilisées.', e); }
+}
+
+const sectoDDNRows  = () => SECTO_ROWS.filter(r=>r.type.toLowerCase()==='ddn');
+const sectoZoneRows = () => SECTO_ROWS.filter(r=>r.type.toLowerCase()==='zone');
+const parseDDN = s => { const m=(s||'').match(/(\d{1,2})\D+(\d{1,2})/); return m?[+m[1],+m[2]]:null; };
+const isFiable = r => (r.fiable||'').toLowerCase()!=='non';
+
+// ── état carte
+let sectoMap=null, sectoLayer=null, sectoMarker=null, sectoReq=0, sectoTimer=null;
+const PACA_BOUNDS=[[42.90,4.15],[45.15,7.80]]; // cadrage région PACA
+const NOMI_CACHE={};
+const norm = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[-'\u2019 ]+/g,' ').trim();
+
+function sectoFilters(){ const s=document.getElementById('sec-secto'); const open=!s.classList.contains('mobile-filters-open'); s.classList.remove('mobile-list-open'); s.classList.toggle('mobile-filters-open',open); }
+function sectoList(){ const s=document.getElementById('sec-secto'); const open=!s.classList.contains('mobile-list-open'); s.classList.remove('mobile-filters-open'); s.classList.toggle('mobile-list-open',open); setTimeout(()=>{ if(sectoMap)sectoMap.invalidateSize(); },260); }
+function sectoAfterSearch(){ const s=document.getElementById('sec-secto'); s.classList.remove('mobile-filters-open'); if(window.innerWidth<=1024){ s.classList.add('mobile-list-open'); } }
+function goSecto(btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active','mobile-list-open','mobile-filters-open'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sec-secto').classList.add('active');
+  if(btn)btn.classList.add('active');
+  setTimeout(()=>{
+    if(!sectoMap){
+      sectoMap=L.map('map-secto',{zoomControl:true});
+      sectoMap.fitBounds(PACA_BOUNDS,{padding:[10,10]});
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(sectoMap);
+    }
+    sectoMap.invalidateSize();
+  },50);
+}
+
+const SECTO_EMPTY = '<div class="secto-empty">🗺️<br><br>Entrez l\'<b>adresse du patient</b> pour connaître son hôpital, son CMP et son secteur,<br>ou sa <b>date de naissance</b> (jj/mm) pour l\'unité d\'hospitalisation à Marseille.</div>';
+
+function sectoReset(){
+  document.getElementById('secto-addr').value='';
+  document.getElementById('secto-ddn').value='';
+  document.getElementById('secto-sugg').style.display='none';
+  if(sectoLayer&&sectoMap){sectoMap.removeLayer(sectoLayer);sectoLayer=null;}
+  if(sectoMarker&&sectoMap){sectoMap.removeLayer(sectoMarker);sectoMarker=null;}
+  sectoReq++;
+  document.getElementById('secto-result').innerHTML=SECTO_EMPTY;
+  if(sectoMap) sectoMap.flyToBounds(PACA_BOUNDS,{duration:.6,padding:[10,10]});
+}
+
+// ── Autocomplete adresse (Photon)
+function sectoInput(){
+  const v=document.getElementById('secto-addr').value.trim();
+  const sg=document.getElementById('secto-sugg');
+  if(v.length<2){sg.style.display='none';return;}
+  clearTimeout(sectoTimer);
+  sectoTimer=setTimeout(async()=>{
+    try{
+      const r=await fetch('https://photon.komoot.io/api/?q='+encodeURIComponent(v)+'&limit=5&lang=fr&lat=43.4&lon=5.6');
+      const d=await r.json();
+      if(!d.features||!d.features.length){sg.style.display='none';return;}
+      const direct=cpFind(v);
+      const directHtml = direct ? '<div class="zs-item" data-direct="'+esc(direct.pc)+'" style="font-weight:700">🎯 '+esc(cpLabel(direct.pc))+' — '+esc(direct.zone.hop)+'</div>' : '';
+      sg.innerHTML=directHtml+d.features.map(f=>{
+        const p=f.properties;const seen=new Set();
+        const label=[p.name,p.housenumber&&p.street?p.housenumber+' '+p.street:p.street,p.postcode,p.city||p.town||p.village].filter(x=>x&&!seen.has(x)&&seen.add(x)).slice(0,4).join(', ');
+        const city=p.city||p.town||p.village||p.name||'';
+        return '<div class="zs-item" data-city="'+esc(city)+'" data-pc="'+esc(p.postcode||'')+'" data-lat="'+f.geometry.coordinates[1]+'" data-lng="'+f.geometry.coordinates[0]+'">📍 '+esc(label)+'</div>';
+      }).join('');
+      sg.style.display='block';
+      sg.querySelectorAll('.zs-item').forEach(el=>el.addEventListener('click',()=>{
+        sg.style.display='none';
+        if(el.dataset.direct){ const dz=cpFind(el.dataset.direct); if(dz){ document.getElementById('secto-addr').value=sectoZoneLabel(dz.pc, dz.zone); resolveByCP(dz.pc, dz.zone); } return; }
+        document.getElementById('secto-addr').value=el.textContent.replace('📍 ','');
+        sectoResolve(el.dataset.city, el.dataset.pc, +el.dataset.lat, +el.dataset.lng);
+      }));
+    }catch(e){sg.style.display='none';}
+  },280);
+}
+async function sectoGo(){
+  document.getElementById('secto-sugg').style.display='none';
+  const v=document.getElementById('secto-addr').value.trim();
+  if(!v)return;
+  // 1) Code postal présent dans la base → résolution directe, rigoureuse
+  const direct=cpFind(v);
+  if(direct){ resolveByCP(direct.pc, direct.zone); return; }
+  try{
+    const r=await fetch('https://photon.komoot.io/api/?q='+encodeURIComponent(v)+'&limit=1&lang=fr&lat=43.4&lon=5.6');
+    const d=await r.json();
+    if(d.features&&d.features.length){
+      const f=d.features[0],p=f.properties;
+      sectoResolve(p.city||p.town||p.village||p.name||'', p.postcode||'', f.geometry.coordinates[1], f.geometry.coordinates[0]);
+    } else {
+      document.getElementById('secto-result').innerHTML='<div class="secto-empty">🤷 Adresse introuvable : « '+esc(v)+' ».<br>Essaie avec la ville ou un code postal.</div>';
+      sectoAfterSearch();
+    }
+  }catch(e){}
+}
+
+// ── Résolution DIRECTE par code postal saisi (prioritaire, indépendante du géocodeur)
+function cpFind(text){
+  const m=(text||'').match(/\b(\d{5})\b/);
+  if(!m) return null;
+  const pc=m[1];
+  const z=sectoZoneRows().find(r=>r.zone.split(';').some(x=>x.trim()===pc));
+  return z?{pc,zone:z}:null;
+}
+function cpLabel(pc){
+  const mA=pc.match(/^130(\d\d)$/);
+  if(mA){ const a=parseInt(mA[1],10); return 'Marseille '+a+(a===1?'er':'e'); }
+  return 'CP '+pc;
+}
+async function resolveByCP(pc, zone){
+  const myReq=++sectoReq;
+  const label=cpLabel(pc);
+  // fiche immédiate — le tracé et le centrage suivent
+  renderSectoZone(zone, label, pc, /^130\d\d$/.test(pc), myReq);
+  sectoAfterSearch();
+}
+
+// ── Résolution robuste : CP > commune exacte > ville multi-CP > préfixe (St-/Saint-)
+const norm2 = s => norm(s).replace(/\bst\b/g,'saint').replace(/\bste\b/g,'sainte');
+
+function sectoFindZone(city, pc){
+  const rows = sectoZoneRows();
+  const n = norm2(city);
+  let z = pc ? rows.find(r=>r.zone.split(';').some(x=>x.trim()===pc)) : null;
+  if(!z && n) z = rows.find(r=>r.zone.split(';').some(x=>norm2(x)===n));
+  return z||null;
+}
+// Villes découpées par CP (Marseille, Nice…) : lignes dont ZONE est un CP pur
+// et dont le SECTEUR commence par le nom de la ville → menu de choix.
+function sectoSubzones(city){
+  const n=norm2(city); if(!n) return [];
+  return sectoZoneRows().filter(r=>/^\d{5}$/.test(r.zone.trim()) && norm2(r.secteur).startsWith(n));
+}
+// Matching par préfixe (≥4 lettres) : « Solliès » → Solliès-Pont / -Toucas / -Ville…
+function sectoPrefixMatches(city){
+  const n=norm2(city); if(n.length<4) return [];
+  const out=[];
+  sectoZoneRows().forEach((r,i)=>{
+    r.zone.split(';').forEach(x=>{
+      const t=x.trim(); if(/^\d{5}$/.test(t)) return;
+      const nx=norm2(t);
+      if(nx===n||nx.startsWith(n)) out.push({i,commune:t,r});
+    });
+  });
+  const seen=new Set();
+  return out.filter(m=>{const k=m.i+'|'+norm2(m.commune);if(seen.has(k))return false;seen.add(k);return true;});
+}
+function sectoZoneLabel(pc, z){
+  if(z && z.secteur && !/^\d/.test(z.secteur)) return z.secteur + (pc?' ('+pc+')':'');
+  return cpLabel(pc);
+}
+function sectoChoiceMenu(title, buttons, note){
+  return '<div class="secto-card"><h4>'+esc(title)+'</h4>'
+    +'<div class="secto-line">Plusieurs résultats possibles — précise :</div>'
+    +'<div class="secto-actions">'+buttons+'</div>'
+    +(note?'<div class="secto-line" style="margin-top:6px;color:#7a7068">'+note+'</div>':'')
+    +'</div>';
+}
+function sectoPickCP(pc){ const f=cpFind(pc); if(f){ document.getElementById('secto-addr').value=sectoZoneLabel(f.pc,f.zone); resolveByCP(f.pc, f.zone); } }
+function sectoPickRow(i, commune){
+  const z=SECTO_ROWS[i]; if(!z) return;
+  document.getElementById('secto-addr').value=commune;
+  renderSectoZone(z, commune, '', false, ++sectoReq);
+  sectoAfterSearch();
+}
+
+async function resolveByCP(pc, zone){
+  const myReq=++sectoReq;
+  renderSectoZone(zone, sectoZoneLabel(pc, zone), pc, /^130\d\d$/.test(pc), myReq);
+  sectoAfterSearch();
+}
+
+function sectoResolve(city, pc, lat, lng){
+  const myReq=++sectoReq;
+  city=(city||'').trim();
+  if(!pc){ const m=(document.getElementById('secto-addr').value||'').match(/\b(\d{5})\b/); if(m)pc=m[1]; }
+  sectoAfterSearch();
+  if(sectoMarker&&sectoMap){sectoMap.removeLayer(sectoMarker);sectoMarker=null;}
+  const hasPt = isFinite(lat)&&isFinite(lng);
+  if(hasPt){
+    const icon=L.divIcon({html:'<div class="zone-marker-icon"></div>',className:'',iconSize:[16,16],iconAnchor:[8,8]});
+    sectoMarker=L.marker([lat,lng],{icon,zIndexOffset:1200}).addTo(sectoMap);
+  }
+  // Monaco : hors sectorisation française
+  if((pc&&/^98\d{3}$/.test(pc)) || norm2(city)==='monaco'){
+    document.getElementById('secto-result').innerHTML='<div class="secto-empty">🇲🇨 <b>Monaco</b> ne relève pas de la sectorisation psychiatrique française.<br>Voir le Centre Hospitalier Princesse Grace (+377 97 98 99 00).</div>';
+    if(sectoLayer&&sectoMap){sectoMap.removeLayer(sectoLayer);sectoLayer=null;}
+    if(hasPt&&sectoMap) sectoMap.flyTo([lat,lng],12,{duration:.7});
+    return;
+  }
+  // 1) CP exact ou commune exacte
+  const zone = sectoFindZone(city, pc);
+  if(zone){ renderSectoZone(zone, city||sectoZoneLabel(pc,zone), pc, norm2(city)==='marseille'||/^130\d\d$/.test(pc||''), myReq); return; }
+  // 2) Ville multi-CP (Marseille, Nice…) → menu des sous-zones
+  const subs = sectoSubzones(city);
+  if(subs.length){
+    const btns = subs.map(s=>'<button class="action-btn" onclick="R.sectoPickCP(\''+jsstr(s.zone.trim())+'\')">📮 '+esc(s.secteur)+' — '+esc(s.zone.trim())+'</button>').join('');
+    const note = norm2(city)==='marseille' ? '🏥 À Marseille, l\'unité d\'hospitalisation dépend de la <b>date de naissance</b> (champ 🎂 ci-dessus).' : 'Choisis le <b>code postal</b> du domicile du patient.';
+    document.getElementById('secto-result').innerHTML=sectoChoiceMenu(city, btns, note);
+    if(sectoLayer&&sectoMap){sectoMap.removeLayer(sectoLayer);sectoLayer=null;}
+    if(hasPt&&sectoMap) sectoMap.flyTo([lat,lng],11,{duration:.7}); else drawSectoPolys([city],'#2e7fc1',myReq);
+    return;
+  }
+  // 3) Préfixe : « St-Cyr » → Saint-Cyr-sur-Mer, « Solliès » → 3 choix
+  const pref = sectoPrefixMatches(city);
+  if(pref.length===1){
+    const m=pref[0];
+    renderSectoZone(m.r, m.commune, pc, false, myReq);
+    return;
+  }
+  if(pref.length>1){
+    const btns = pref.slice(0,10).map(m=>'<button class="action-btn" onclick="R.sectoPickRow('+SECTO_ROWS.indexOf(m.r)+',\''+jsstr(m.commune)+'\')">📍 '+esc(m.commune)+' — '+esc(m.r.hop)+'</button>').join('');
+    document.getElementById('secto-result').innerHTML=sectoChoiceMenu(city||'Résultats', btns, '');
+    if(sectoLayer&&sectoMap){sectoMap.removeLayer(sectoLayer);sectoLayer=null;}
+    if(hasPt&&sectoMap) sectoMap.flyTo([lat,lng],10,{duration:.7});
+    return;
+  }
+  // 4) Rien trouvé
+  document.getElementById('secto-result').innerHTML='<div class="secto-empty">🤷 <b>'+esc(city||pc||'?')+'</b> n\'est pas (encore) dans la feuille Sectorisation.<br><br>Vérifie l\'orthographe, essaie avec le <b>code postal</b>,<br>ou ajoute la commune dans le Sheet (colonne ZONE) — ou signale-le à Claude !</div>';
+  if(sectoLayer&&sectoMap){sectoMap.removeLayer(sectoLayer);sectoLayer=null;}
+  if(hasPt&&sectoMap) sectoMap.flyTo([lat,lng],11,{duration:.7});
+}
+
+function copyBtn(val,ico){ return val?'<button class="action-btn" onclick="R.copyVal(this,\''+jsstr(val)+'\')">'+ico+' '+esc(val)+'</button>':''; }
+
+function renderSectoZone(z, city, pc, isMrs, myReq){
+  const ok = isFiable(z);
+  const col = isMrs ? '#2e7fc1' : (ok ? '#2e8a56' : '#b8862a');
+  let h='<div class="secto-card">';
+  h+='<span class="secto-code" style="background:'+col+'">'+esc(z.secteur||'Secteur')+'</span>'+(ok?'':'<span class="secto-warn">⚠️ à vérifier</span>');
+  h+='<h4>🏥 '+esc(z.hop||'—')+'</h4>';
+  if(z.unite) h+='<div class="secto-line">🛏️ Unité d\'hospitalisation : <b>'+esc(z.unite)+'</b></div>';
+  else if(isMrs) h+='<div class="secto-line">🛏️ Unité d\'hospitalisation : selon la <b>date de naissance</b> (champ 🎂 ci-dessus)</div>';
+  h+='<div class="secto-line">📍 <b>'+esc(city)+(pc?' ('+esc(pc)+')':'')+'</b></div>';
+  if(z.telu) h+='<div class="secto-actions">'+copyBtn(z.telu,'📞')+'</div>';
+  if(z.com) h+='<div class="secto-line" style="color:#7a7068">'+esc(z.com)+'</div>';
+  h+='</div>';
+  if(z.cmp){
+    const nav = z.adrc ? '<a class="action-btn" style="background:#e8f4e8;border-color:#5a9972;color:#2a6a3a" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(z.adrc)+'">🧭 Itinéraire</a>' : '';
+    h+='<div class="secto-card"><span class="secto-code" style="background:#7c3fc1">CMP</span><h4>'+esc(z.cmp)+'</h4>'
+      +(z.adrc?'<div class="secto-line">📍 '+esc(z.adrc)+'</div>':'')
+      +'<div class="secto-actions">'+nav+copyBtn(z.telc,'📞')+copyBtn(z.mailc,'✉️')+(z.adrc?copyBtn(z.adrc,'📋'):'')+'</div></div>';
+  }
+  const parts = (z.zonet||z.zone).split(';').map(x=>x.trim()).filter(Boolean);
+  h+='<div class="secto-card"><div class="secto-line"><b>Périmètre tracé :</b> '+parts.map(esc).join(' · ')+'</div>'
+    +(z.zonet?'<div class="secto-line" style="color:#7a7068;font-size:10.5px">Colonne « ZONE TRACEE » de la feuille Sectorisation</div>':'')
+    +'<div class="secto-loading" id="secto-load">🖌️ Tracé du secteur en cours…</div></div>';
+  document.getElementById('secto-result').innerHTML=h;
+  drawSectoPolys(parts, col, myReq);
+}
+
+// ── Tracé des polygones (Nominatim séquentiel + cache, respect rate-limit)
+async function drawSectoPolys(names, color, myReq){
+  if(sectoLayer&&sectoMap){sectoMap.removeLayer(sectoLayer);sectoLayer=null;}
+  const layer=L.featureGroup().addTo(sectoMap);
+  sectoLayer=layer;
+  const style={color:color,weight:2.5,fillColor:color,fillOpacity:0.16};
+  let found=0;
+  for(const nRaw of names){
+    if(myReq!==sectoReq)return;
+    let q=nRaw;
+    const mArr=nRaw.match(/^130(\d\d)$/);
+    if(mArr) q='Marseille '+parseInt(mArr[1],10)+'e Arrondissement';
+    else if(!/marseille/i.test(nRaw)) q=nRaw+', France';
+    const key=norm(q);
+    let gj=NOMI_CACHE[key];
+    if(gj===undefined){
+      try{
+        const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&polygon_geojson=1&polygon_threshold=0.003&limit=1&countrycodes=fr&q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}});
+        const d=await r.json();
+        gj=(d.length&&d[0].geojson&&(d[0].geojson.type==='Polygon'||d[0].geojson.type==='MultiPolygon'))?d[0].geojson:(d.length?{pt:[+d[0].lat,+d[0].lon]}:null);
+        NOMI_CACHE[key]=gj;
+        await new Promise(res=>setTimeout(res,350));
+      }catch(e){gj=null;}
+    }
+    if(myReq!==sectoReq)return;
+    if(gj&&gj.pt){ L.circle(gj.pt,{radius:2000,...style}).addTo(layer); found++; }
+    else if(gj){ L.geoJSON(gj,{style}).addTo(layer); found++; }
+    if(found===1){ try{ sectoMap.fitBounds(layer.getBounds().pad(0.15)); }catch(e){} }
+  }
+  try{ if(layer.getLayers().length) sectoMap.fitBounds(layer.getBounds().pad(0.08)); }catch(e){}
+  const ld=document.getElementById('secto-load'); if(ld)ld.textContent='✅ Secteur tracé ('+found+'/'+names.length+' zones)';
+}
+
+// ── Recherche par date de naissance (Marseille)
+function sectoDDN(){
+  const v=document.getElementById('secto-ddn').value.trim();
+  const m=v.match(/^(\d{1,2})\s*[\/\-\. ]\s*(\d{1,2})(?:[\/\-\. ]\d{2,4})?$/) || v.match(/^(\d{2})(\d{2})$/);
+  const res=document.getElementById('secto-result');
+  if(!m){res.innerHTML='<div class="secto-empty">Format attendu : <b>jj/mm</b> (ex : 23/08)</div>';return;}
+  const d=+m[1], mo=+m[2];
+  if(d<1||d>31||mo<1||mo>12){res.innerHTML='<div class="secto-empty">Date invalide.</div>';return;}
+  const val=mo*100+d;
+  const sec=sectoDDNRows().find(r=>{
+    const a=parseDDN(r.ddn1), b=parseDDN(r.ddn2);
+    if(!a||!b) return false;
+    return val>=a[1]*100+a[0] && val<=b[1]*100+b[0];
+  });
+  if(!sec){res.innerHTML='<div class="secto-empty">Aucun secteur trouvé pour cette date — vérifie la feuille Sectorisation.</div>';return;}
+  const myReq=++sectoReq;
+  let h='<div class="secto-card">';
+  h+='<span class="secto-code" style="background:#c1607a">'+esc(sec.secteur)+'</span>';
+  h+='<h4>🏥 '+esc(sec.hop)+'</h4>';
+  h+='<div class="secto-line">🛏️ Unité d\'hospitalisation : <b>'+esc(sec.unite)+'</b></div>';
+  h+='<div class="secto-line">🎂 Naissance du <b>'+esc(sec.ddn1)+'</b> au <b>'+esc(sec.ddn2)+'</b> · patient domicilié à <b>Marseille</b></div>';
+  if(sec.telu)h+='<div class="secto-actions">'+copyBtn(sec.telu,'📞')+'</div>';
+  h+='<div class="secto-line" style="margin-top:6px;color:#7a7068">ℹ️ Le CMP dépend de l\'<b>arrondissement</b> — utilise la recherche 📍 par adresse.</div>';
+  h+='</div>';
+  res.innerHTML=h;
+  sectoAfterSearch();
+  drawSectoPolys(['Marseille'],'#c1607a',myReq);
+}
+
+document.addEventListener('click',e=>{
+  const sg=document.getElementById('secto-sugg');
+  if(sg&&!sg.contains(e.target)&&e.target!==document.getElementById('secto-addr'))sg.style.display='none';
+});
+
+// ══════════════════════════════════════════════════════
+//  OBJET GLOBAL R (handlers inline)
+// ══════════════════════════════════════════════════════
+const R = {
+  switch:switchSection, render, select, reset, setReseau, goSecto, sectoFilters, sectoList, sectoPickCP, sectoPickRow,
+  onZone, searchZone, applyZone, clearZone,
+  openExport, closeExport, copyExport, shareFiche,
+  toggleList, toggleFilters,
+  toggleChip(k,id){ const st=ST[k]; st.chips[id]=!st.chips[id]; const el=document.getElementById(k+'-chip-'+id); el.dataset.active=st.chips[id]; el.classList.toggle('active',st.chips[id]); render(k); },
+  toggleType(k,val,checked){ const st=ST[k]; checked?st.typeSet.add(val):st.typeSet.delete(val); updateTypeLabel(k); render(k); },
+  allTypes(k,on){ const st=ST[k]; st.typeSet=on?new Set(st.types):new Set(); document.querySelectorAll('#'+k+'-typemenu input').forEach(cb=>cb.checked=on); updateTypeLabel(k); render(k); },
+  toggleMenu(k,id,val,checked){ const st=ST[k]; checked?st.menus[id].add(val):st.menus[id].delete(val); updateMenuLabel(k,id); render(k); },
+  clearMenu(k,id){ const st=ST[k]; st.menus[id]=new Set(); document.querySelectorAll('#'+k+'-menu-'+id+' input').forEach(cb=>cb.checked=false); updateMenuLabel(k,id); render(k); },
+  setSelect(k,id,v){ ST[k].selects[id]=v; if(k==='idel'&&id==='secteur'){ drawSecteur(v); } render(k); },
+  copyVal(btn, val){
+    const done=()=>{ const orig=btn.innerHTML; btn.innerHTML='✓ Copié !'; btn.style.background='#e8f4e8'; btn.style.borderColor='#5a9972'; setTimeout(()=>{ btn.innerHTML=orig; btn.style.background=''; btn.style.borderColor=''; },1400); };
+    if(navigator.clipboard&&window.isSecureContext){ navigator.clipboard.writeText(val).then(done).catch(()=>{ fallbackCopy(val); done(); }); }
+    else { fallbackCopy(val); done(); }
+  },
+};
+
+// ══════════════════════════════════════════════════════
+//  CHARGEMENT
+// ══════════════════════════════════════════════════════
+function detectKey(headers){
+  const H=headers.map(h=>h.toLowerCase());
+  const has=sub=>H.some(h=>h.includes(sub));
+  if(has('cmp')) return 'psychiatres';
+  if(has('surspéc')||has('surspec')) return 'somatiques';
+  if(has('cabinet')) return 'idel';
+  if(has('emdr')) return 'psychologues';
+  if(has('flyer')&&(has('habiletés sociales')||has('habiletes sociales'))) return 'educpaires';
+  if(has('habiletés sociales')||has('habiletes sociales')) return 'psychologues';
+  if(has('rqth')) return 'readaptation';
+  if(has('rattachement')||has('territoire couvert')) return 'sanitaire';
+  if(has('modalité')||has('modalite')) return 'samsah';
+  if(has('snoezelen')||has('place p')) return 'hebergements';
+  if(has('espaces verts')||has('conditionnement')) return 'emplois';
+  if(has('domaine')||has('association')) return 'associatif';
+  return null;
+}
+function fillDept(k){
+  const st=ST[k], sel=document.getElementById(k+'-dept');
+  [...new Set(st.data.map(e=>e.dpt).filter(Boolean))].sort().forEach(d=>{ const o=document.createElement('option'); o.value=d; o.textContent='Dép. '+d; sel.appendChild(o); });
+}
+function fillDynSelects(k){
+  const s=SEC[k], st=ST[k];
+  (s.selects||[]).forEach(sel=>{
+    if(!sel.dyn) return;
+    const el=document.getElementById(k+'-sel-'+sel.id); if(!el) return;
+    const vals=[...new Set(st.data.map(e=>e[sel.dyn]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+    vals.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o); });
+  });
+}
+async function loadAll(){
+  buildNav(); buildSections();
+  try{
+    const texts = await Promise.all(SOURCES.map(async src=>{ try{ const r=await fetch(src.url); return await r.text(); }catch(e){ return ''; } }));
+    const assigned={};
+    // 1) détection par entêtes
+    texts.forEach((txt,idx)=>{
+      if(!txt) return;
+      const rows=parseCSV(txt); if(!rows.length) return;
+      const key=detectKey(Object.keys(rows[0]));
+      if(key && !assigned[key]) assigned[key]={rows, idx};
+    });
+    // 2) repli sur l'ordre fourni pour les sections non détectées
+    SECTIONS.forEach(s=>{
+      if(assigned[s.key]) return;
+      const srcIdx=SOURCES.findIndex((src,i)=>src.hint===s.key && !Object.values(assigned).some(a=>a.idx===i));
+      if(srcIdx>=0 && texts[srcIdx]){ const rows=parseCSV(texts[srcIdx]); if(rows.length) assigned[s.key]={rows,idx:srcIdx}; }
+    });
+    // 3) parse + construction par section
+    SECTIONS.forEach(s=>{
+      const a=assigned[s.key]; const st=ST[s.key];
+      st.data = a ? a.rows.map(s.parse).filter(e=>e.nom) : [];
+      buildTypeMenu(s.key); buildAttrMenus(s.key); fillDept(s.key); fillDynSelects(s.key);
+    });
+    setReseau('tsa');
+    switchSection('psychiatres', document.querySelector('.nav-btn[data-key="psychiatres"]'));
+    document.getElementById('last-update').textContent=new Date().toLocaleTimeString('fr-FR');
+    document.getElementById('loading').classList.add('hidden');
+  }catch(err){
+    console.error(err);
+    document.getElementById('loading-text').innerHTML='⚠️ Erreur : '+err.message+'<br><small style="color:#aaa">Voir la console (F12)</small>';
+  }
+}
+
+// fermeture des menus / suggestions au clic extérieur
+document.addEventListener('keydown',e=>{ if(e.key==='Escape')closeExport(); });
+document.addEventListener('click',e=>{
+  document.querySelectorAll('.type-filter[open]').forEach(d=>{ if(!d.contains(e.target)) d.removeAttribute('open'); });
+  SECTIONS.forEach(s=>{ const sugg=document.getElementById('zone-sugg-'+s.key), input=document.getElementById('zone-'+s.key); if(sugg&&!sugg.contains(e.target)&&e.target!==input) sugg.style.display='none'; });
+});
+
+let __resizeTO=null;
+function resyncMaps(){ SECTIONS.forEach(s=>{ const m=ST[s.key].map; if(m){ try{ m.invalidateSize(false); }catch(_){} } }); }
+window.addEventListener('resize', ()=>{ clearTimeout(__resizeTO); __resizeTO=setTimeout(resyncMaps,180); });
+window.addEventListener('orientationchange', ()=>setTimeout(resyncMaps,300));
+if(window.visualViewport){ window.visualViewport.addEventListener('resize', ()=>{ clearTimeout(__resizeTO); __resizeTO=setTimeout(resyncMaps,180); }); }
+
+loadSecto();
+loadAll();
+</script>
+</body>
+</html>
